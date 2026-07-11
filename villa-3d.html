@@ -1306,20 +1306,60 @@ var TERR={"x0":-20,"z0":-44,"step":2,"ncol":27,"nrow":38,"ffl":54.55,"grid":[[49
   }
   gg.computeVertexNormals();
 
-  /* ---- 360-fotot projicerat på marken, inblandat i det procedurella gräset ---- *
-   * För varje markvertex: riktning från fotopunkten -> equirektangulär UV (samma
-   * konvention/rotation som himmelskupolen), så den riktiga gräsmattan draperas
-   * på terrängen. Blend-vikt tonar från foto (nära) till procedurellt gräs (långt
-   * bort) och maskar stitch-artefakten rakt under kameran (nadir).                */
-  /* Blend-vikten styrs av hur brant kameran såg varje markpunkt (sin av vinkeln
-   * under horisonten = -dy). Nära kameran är vinkeln brant -> skarp projektion,
-   * långt bort går den mot horisonten -> kraftig utsmetning -> tona till gräs.
-   * Detta följer geometrin/terrängen och ger en mjuk, naturlig övergång.        */
+  /* ---- Satellit/ortofoto på en cirkel runt huset + 360-foto wrappat utanför ----
+   * Marken byggs i tre lager som blandas per markvertex:
+   *   1) procedurellt gräs (fallback längst ut),
+   *   2) satellit/ortofoto inom en cirkel (~40 m) centrerad i husets mitt,
+   *   3) 360-fotot draperat, som tonar IN utåt mot cirkelns kant och möter
+   *      himmelskupolen vid horisonten.
+   * Övergången satellit -> foto är mjuk (radiell), så mark och foto hänger ihop
+   * utan hård söm. photoUv följer samma equirektangulära konvention/rotation som
+   * kupolen; satUv är en plan top-down-mappning av bildens världsrektangel.      */
   var GPANO = { C:new THREE.Vector3(6.75,1.5,3.75), R:4.4113,
-                sinLo:0.045, sinHi:0.16, rMax:38, rNadir:1.0 };
+                rMax:38, rNadir:1.0, rIn:16, rOut:24 };
   function smooth(a,b,x){ var t=Math.max(0,Math.min(1,(x-a)/(b-a))); return t*t*(3-2*t); }
+
+  /* SAT: bildens världsrektangel (x0..x1 × z0..z1, meter). Ortofotot passas in
+   * mot fastighetsgränserna (BND.poly) – ingen koordinatinfo behövs i bildfilen,
+   * bara denna rektangel. Tills en riktig PNG lagts in ritas en procedurell
+   * platshållare med gräns, husfotavtryck och 40 m-cirkeln.                      */
+  var SAT = { x0:-13, z0:-37, x1:27, z1:24, tex:null };
+  function satUvOf(wx,wz){ return [ (wx-SAT.x0)/(SAT.x1-SAT.x0), (wz-SAT.z0)/(SAT.z1-SAT.z0) ]; }
+  function makePlaceholderSat(){
+    var W=SAT.x1-SAT.x0, Hh=SAT.z1-SAT.z0, cw=1024, ch=Math.round(cw*Hh/W);
+    var cv=document.createElement('canvas'); cv.width=cw; cv.height=ch; var g=cv.getContext('2d');
+    function P(u,v){ return [u*cw,(1-v)*ch]; }                 /* uv -> canvaspixel (flipY) */
+    function Pw(wx,wz){ var uv=satUvOf(wx,wz); return P(uv[0],uv[1]); }
+    g.fillStyle='#6b7a4c'; g.fillRect(0,0,cw,ch);              /* samma olivgröna som gräset */
+    for(var i=0;i<26000;i++){ g.fillStyle='hsl('+(78+Math.random()*30)+',30%,'+(28+Math.random()*16)+'%)';
+      g.fillRect(Math.random()*cw,Math.random()*ch,2,2+Math.random()*3); }
+    g.strokeStyle='rgba(255,225,90,.95)'; g.lineWidth=4; g.beginPath();   /* fastighetsgräns */
+    BND.poly.forEach(function(p,k){ var q=Pw(p[0],p[1]); if(k===0)g.moveTo(q[0],q[1]); else g.lineTo(q[0],q[1]); });
+    g.closePath(); g.stroke(); g.fillStyle='rgba(255,225,90,.95)';
+    BND.poly.forEach(function(p){ var q=Pw(p[0],p[1]); g.beginPath(); g.arc(q[0],q[1],7,0,Math.PI*2); g.fill(); });
+    var a=Pw(0,0), b=Pw(13.5,7.5); g.strokeStyle='rgba(240,240,240,.9)'; g.lineWidth=3;   /* husfotavtryck */
+    g.strokeRect(Math.min(a[0],b[0]),Math.min(a[1],b[1]),Math.abs(b[0]-a[0]),Math.abs(b[1]-a[1]));
+    var c=Pw(6.75,3.75), e=Pw(6.75+20,3.75), rpx=Math.abs(e[0]-c[0]);   /* 40 m-cirkel (r=20) */
+    g.strokeStyle='rgba(120,220,255,.85)'; g.lineWidth=3; g.setLineDash([14,10]);
+    g.beginPath(); g.arc(c[0],c[1],rpx,0,Math.PI*2); g.stroke(); g.setLineDash([]);
+    var t=new THREE.CanvasTexture(cv); t.wrapS=t.wrapT=THREE.ClampToEdgeWrapping; t.anisotropy=MAXANI;
+    SAT.tex=t;
+  }
+  makePlaceholderSat();
+  /* Byt till riktig ortofoto senare: _setSatImage(url,{x0,z0,x1,z1}) där rektangeln
+   * passats in mot gränsen. url kan vara en data:-URI eller en fil bredvid html:en. */
+  window._setSatImage=function(url,rect){
+    if(rect){ ['x0','z0','x1','z1'].forEach(function(k){ if(rect[k]!=null) SAT[k]=rect[k]; }); }
+    var im=new Image(); im.crossOrigin='anonymous';
+    im.onload=function(){ var t=new THREE.Texture(im); t.wrapS=t.wrapT=THREE.ClampToEdgeWrapping;
+      t.anisotropy=MAXANI; t.needsUpdate=true; SAT.tex=t;
+      if(matGrass.userData._shader) matGrass.userData._shader.uniforms.uSat.value=t;
+      window._recalcGroundPano(); };
+    im.src=url;
+  };
   function buildGroundPanoAttribs(){
-    var n=pos.count, puv=new Float32Array(n*2), bl=new Float32Array(n);
+    var n=pos.count, puv=new Float32Array(n*2), suv=new Float32Array(n*2),
+        bl=new Float32Array(n), sw=new Float32Array(n);
     for (var i=0;i<n;i++){
       var vx=pos.getX(i), vy=pos.getY(i), vz=pos.getZ(i);
       var dx=vx-GPANO.C.x, dy=vy-GPANO.C.y, dz=vz-GPANO.C.z;
@@ -1327,21 +1367,29 @@ var TERR={"x0":-20,"z0":-44,"step":2,"ncol":27,"nrow":38,"ffl":54.55,"grid":[[49
       var u=(Math.atan2(dz,dx)+GPANO.R)/(2*Math.PI); u-=Math.floor(u);   /* wrap [0,1) */
       var v=1-Math.acos(Math.max(-1,Math.min(1,dy)))/Math.PI;            /* mark => v<0.5 */
       puv[2*i]=u; puv[2*i+1]=v;
-      var w = smooth(GPANO.sinLo, GPANO.sinHi, -dy);                     /* brant = foto */
+      var su=satUvOf(vx,vz); suv[2*i]=su[0]; suv[2*i+1]=su[1];           /* plan top-down-UV */
       var r=Math.hypot(vx-GPANO.C.x, vz-GPANO.C.z);
-      w *= 1-smooth(GPANO.rMax-4, GPANO.rMax, r);                        /* hård yttre gräns */
-      if (r<GPANO.rNadir) w*=smooth(0,GPANO.rNadir,r);                   /* dölj nadir */
-      bl[i]=w;
+      /* fotot tonar IN utåt: satellit nära -> foto vid cirkelns kant -> möter kupolen */
+      var wPhoto=smooth(GPANO.rIn, GPANO.rOut, r);
+      wPhoto*=1-smooth(GPANO.rMax, GPANO.rMax+8, r);                     /* mjuk yttre utfasning */
+      bl[i]=wPhoto;
+      /* satellit gäller inom bildrektangeln och innanför cirkeln (1-wPhoto) */
+      var edge=Math.min(smooth(0,0.03,su[0]),smooth(0,0.03,1-su[0]),
+                        smooth(0,0.03,su[1]),smooth(0,0.03,1-su[1]));    /* mjuk bildkant */
+      sw[i]=edge*(1-wPhoto);
     }
     gg.setAttribute('photoUv', new THREE.BufferAttribute(puv,2));
+    gg.setAttribute('satUv',   new THREE.BufferAttribute(suv,2));
     gg.setAttribute('aBlend',  new THREE.BufferAttribute(bl,1));
+    gg.setAttribute('satW',    new THREE.BufferAttribute(sw,1));
   }
   buildGroundPanoAttribs();
   window._recalcGroundPano=function(o){ o=o||{};
-    ['R','sinLo','sinHi','rMax','rNadir'].forEach(function(k){ if(o[k]!=null) GPANO[k]=o[k]; });
+    ['R','rMax','rNadir','rIn','rOut'].forEach(function(k){ if(o[k]!=null) GPANO[k]=o[k]; });
     if(o.camY!=null) GPANO.C.y=o.camY;
     buildGroundPanoAttribs();
     gg.attributes.photoUv.needsUpdate=true; gg.attributes.aBlend.needsUpdate=true;
+    gg.attributes.satUv.needsUpdate=true; gg.attributes.satW.needsUpdate=true;
   };
 
   /* Marken är belyst (MeshStandard) men foto-sfären är obelyst -> marken blir
@@ -1354,16 +1402,17 @@ var TERR={"x0":-20,"z0":-44,"step":2,"ncol":27,"nrow":38,"ffl":54.55,"grid":[[49
   matGrass.customProgramCacheKey=function(){ return 'groundPano'; };
   matGrass.onBeforeCompile=function(shader){
     shader.uniforms.uPano={ value: window._panoTex };
+    shader.uniforms.uSat={ value: SAT.tex };
     shader.uniforms.uGroundMul={ value: GDARK.mul };
     matGrass.userData._shader = shader;
-    shader.vertexShader='attribute vec2 photoUv;\nattribute float aBlend;\nvarying vec2 vPhotoUv;\nvarying float vBlend;\n'+shader.vertexShader;
+    shader.vertexShader='attribute vec2 photoUv;\nattribute vec2 satUv;\nattribute float aBlend;\nattribute float satW;\nvarying vec2 vPhotoUv;\nvarying vec2 vSatUv;\nvarying float vBlend;\nvarying float vSatW;\n'+shader.vertexShader;
     shader.vertexShader=shader.vertexShader.replace('#include <uv_vertex>',
-      '#include <uv_vertex>\n\tvPhotoUv = photoUv;\n\tvBlend = aBlend;');
-    shader.fragmentShader='uniform sampler2D uPano;\nuniform float uGroundMul;\nvarying vec2 vPhotoUv;\nvarying float vBlend;\n'+
-      'vec3 panoToLinear(vec3 c){ return mix( c*0.0773993808, pow(c*0.9478672986+0.0521327014, vec3(2.4)), step(vec3(0.04045), c) ); }\n'+
+      '#include <uv_vertex>\n\tvPhotoUv = photoUv;\n\tvSatUv = satUv;\n\tvBlend = aBlend;\n\tvSatW = satW;');
+    shader.fragmentShader='uniform sampler2D uPano;\nuniform sampler2D uSat;\nuniform float uGroundMul;\nvarying vec2 vPhotoUv;\nvarying vec2 vSatUv;\nvarying float vBlend;\nvarying float vSatW;\n'+
+      'vec3 sRgbToLin(vec3 c){ return mix( c*0.0773993808, pow(c*0.9478672986+0.0521327014, vec3(2.4)), step(vec3(0.04045), c) ); }\n'+
       shader.fragmentShader;
     shader.fragmentShader=shader.fragmentShader.replace('#include <map_fragment>',
-      '#include <map_fragment>\n\t{\n\t\tvec3 photoLin = panoToLinear( texture2D( uPano, vPhotoUv ).rgb );\n\t\tdiffuseColor.rgb = mix( diffuseColor.rgb, photoLin, clamp(vBlend,0.0,1.0) );\n\t\tdiffuseColor.rgb *= uGroundMul;\n\t}');
+      '#include <map_fragment>\n\t{\n\t\tvec3 satLin = sRgbToLin( texture2D( uSat, vSatUv ).rgb );\n\t\tdiffuseColor.rgb = mix( diffuseColor.rgb, satLin, clamp(vSatW,0.0,1.0) );\n\t\tvec3 photoLin = sRgbToLin( texture2D( uPano, vPhotoUv ).rgb );\n\t\tdiffuseColor.rgb = mix( diffuseColor.rgb, photoLin, clamp(vBlend,0.0,1.0) );\n\t\tdiffuseColor.rgb *= uGroundMul;\n\t}');
   };
   window._setGroundDark=function(m){ GDARK.mul=m; var sh=matGrass.userData._shader; if(sh&&sh.uniforms.uGroundMul) sh.uniforms.uGroundMul.value=m; };
 
