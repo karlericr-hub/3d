@@ -1291,7 +1291,7 @@ var TERR={"x0":-20,"z0":-44,"step":2,"ncol":27,"nrow":38,"ffl":54.55,"grid":[[49
    * långt bort går den mot horisonten -> kraftig utsmetning -> tona till gräs.
    * Detta följer geometrin/terrängen och ger en mjuk, naturlig övergång.        */
   var GPANO = { C:new THREE.Vector3(6.75,1.5,3.75), R:4.4113,
-                sinLo:0.11, sinHi:0.42, rMax:26, rNadir:1.0 };
+                sinLo:0.045, sinHi:0.16, rMax:38, rNadir:1.0 };
   function smooth(a,b,x){ var t=Math.max(0,Math.min(1,(x-a)/(b-a))); return t*t*(3-2*t); }
   function buildGroundPanoAttribs(){
     var n=pos.count, puv=new Float32Array(n*2), bl=new Float32Array(n);
