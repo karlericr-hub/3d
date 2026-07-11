@@ -1324,7 +1324,7 @@ var TERR={"x0":-20,"z0":-44,"step":2,"ncol":27,"nrow":38,"ffl":54.55,"grid":[[49
    * similaritetstransform (enhetlig skala ~22 px/m), c=[a,b,c, d,e,f].
    * OBS: ortofotot har fastighetsgränserna inritade i gult (tillfälligt).        */
   var SAT = { W:1588, H:990,
-              c:[10.93199,19.26454,733.61179, 19.29486,-10.90923,209.49944], tex:null };
+              c:[10.92662,-19.28771,878.21895, 19.28771,10.92662,127.66327], tex:null };
   function satUvOf(wx,wz){
     var px=SAT.c[0]*wx+SAT.c[1]*wz+SAT.c[2], py=SAT.c[3]*wx+SAT.c[4]*wz+SAT.c[5];
     return [ px/SAT.W, 1 - py/SAT.H ];              /* -> UV (flipY-konvention) */
