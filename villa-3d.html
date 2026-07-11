@@ -1323,6 +1323,10 @@ var TERR={"x0":-20,"z0":-44,"step":2,"ncol":27,"nrow":38,"ffl":54.55,"grid":[[49
    * ljusare. uGroundMul mörkar hela marken (foto + gräs) så den matchar kupolen
    * och ser mer verklig ut.                                                     */
   var GDARK = { mul: 0.72 };
+  /* Egen cache-nyckel så markshadern INTE delas med andra MeshStandard-material
+   * (parkett/kakel/tavlor osv) — annars läcker uPano/uGroundMul dit och gör dem
+   * svarta. */
+  matGrass.customProgramCacheKey=function(){ return 'groundPano'; };
   matGrass.onBeforeCompile=function(shader){
     shader.uniforms.uPano={ value: window._panoTex };
     shader.uniforms.uGroundMul={ value: GDARK.mul };
