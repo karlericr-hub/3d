@@ -289,6 +289,11 @@ var matWallWC = new THREE.MeshStandardMaterial({map:makeTex(512, drawWallTile, 1
 var matCeil   = new THREE.MeshStandardMaterial({color:0xffffff, emissive:0xffffff, emissiveIntensity:0.42, roughness:1});
 var matFrame  = new THREE.MeshStandardMaterial({color:0xffffff, roughness:.4});
 var matGlass  = new THREE.MeshStandardMaterial({color:0xdceef5, transparent:true, opacity:0.07, roughness:.2, metalness:0, envMapIntensity:0.12, side:THREE.DoubleSide});
+/* Mörk "utsida" på glaset – ligger som ett tunt skikt strax utanför rutan och
+   renderas endast med framsidan (FrontSide). Utifrån möter kameran framsidan
+   och glaset ser nästan svart ut som riktiga fönster i dagsljus; inifrån vänder
+   baksidan mot kameran och gallras bort, så man ser rakt igenom den klara rutan. */
+var matGlassOut = new THREE.MeshStandardMaterial({color:0x0b0f13, roughness:.07, metalness:0, transparent:true, opacity:0.9, envMapIntensity:0.85, side:THREE.FrontSide, depthWrite:false});
 var matDoor   = new THREE.MeshStandardMaterial({color:0xf5f4f1, roughness:.45});
 var matFabric = new THREE.MeshStandardMaterial({color:0x8b8f96, roughness:.95});
 var matFabricL= new THREE.MeshStandardMaterial({color:0xb9b4a8, roughness:.95});
@@ -393,6 +398,22 @@ function box(x1,y1,z1,x2,y2,z2,mat,col){
 function cyl(x,y,z,r,h,mat,rSeg){
   var m = new THREE.Mesh(new THREE.CylinderGeometry(r,r,h,rSeg||20), mat);
   m.position.set(x,y+h/2,z); m.castShadow=true; m.receiveShadow=true;
+  scene.add(m); return m;
+}
+/* Mörkt glasskikt på fasadens utsida – ett enkelt plan (matGlassOut, FrontSide)
+   strax utanför fönsterrutan. Normalen pekar utåt (outSign), så planet syns bara
+   utifrån och gallras bort sett inifrån. axis/at/outSign kommer från väggen;
+   a1..a2 = rutans utbredning i väggens längdled, b1..b2 = höjd. */
+function outerGlass(axis, at, outSign, a1, b1, a2, b2){
+  var m = new THREE.Mesh(new THREE.PlaneGeometry(Math.abs(a2-a1), Math.abs(b2-b1)), matGlassOut);
+  var ca = (a1+a2)/2, cb = (b1+b2)/2;
+  if (axis === 'x'){
+    m.position.set(ca, cb, at + outSign*0.02);
+    if (outSign < 0) m.rotation.y = Math.PI;      /* vänd normalen mot -z */
+  } else {
+    m.position.set(at + outSign*0.02, cb, ca);
+    m.rotation.y = outSign > 0 ? Math.PI/2 : -Math.PI/2;
+  }
   scene.add(m); return m;
 }
 /* Mjuk box med rundade hörn – för kuddar, madrasser och stoppade möbler */
@@ -535,6 +556,10 @@ function decorate(w, o){
       addCol(w.at-t/2, o.from, w.at+t/2, o.to, Y0, Y1);
     }
     pane.castShadow = false;
+    /* mörk utsida på fasadfönstren (ytterväggar har svart karm = w.fmat) */
+    if (w.fmat){
+      outerGlass(w.axis, w.at, ip ? -1 : 1, o.from+0.01, o.b+0.01, o.to-0.01, o.t-0.01);
+    }
   }
   if (o.type === 'extdoor'){
     /* stängd ytterdörr med handtag */
