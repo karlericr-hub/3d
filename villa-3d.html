@@ -1320,11 +1320,14 @@ var TERR={"x0":-20,"z0":-44,"step":2,"ncol":27,"nrow":38,"ffl":54.55,"grid":[[49
   function smooth(a,b,x){ var t=Math.max(0,Math.min(1,(x-a)/(b-a))); return t*t*(3-2*t); }
 
   /* SAT: ortofoto (satellit) draperat på cirkeln runt huset. Inpassat mot
-   * fastighetsgränserna via situationsplanen: world(x,z) -> bildpixel via en
-   * similaritetstransform (enhetlig skala ~22 px/m), c=[a,b,c, d,e,f].
+   * scenens verkliga väderstreck (bekräftat av 360-fotot + kompassen): norr =
+   * world (0.796, 0.606), hus 24 rakt söderut. Fotot är taget från husets mitt,
+   * så u=0.33 (hus 24) och u=0.80 (vägen/norr) ger azimut theta = 2*pi*u - 4.4113.
+   * world(x,z) -> ortofoto-pixel via en similaritet (enhetlig skala ~21,5 px/m,
+   * determinant > 0 = ingen spegling), c=[a,b,c, d,e,f].
    * OBS: ortofotot har fastighetsgränserna inritade i gult (tillfälligt).        */
   var SAT = { W:1588, H:990,
-              c:[10.93199,19.26454,733.61179, 19.29486,-10.90923,209.49944], tex:null };
+              c:[-13.029,17.114,821.77, -17.114,-13.029,495.88], tex:null };
   function satUvOf(wx,wz){
     var px=SAT.c[0]*wx+SAT.c[1]*wz+SAT.c[2], py=SAT.c[3]*wx+SAT.c[4]*wz+SAT.c[5];
     return [ px/SAT.W, 1 - py/SAT.H ];              /* -> UV (flipY-konvention) */
