@@ -1319,17 +1319,24 @@ var TERR={"x0":-20,"z0":-44,"step":2,"ncol":27,"nrow":38,"ffl":54.55,"grid":[[49
     gg.attributes.photoUv.needsUpdate=true; gg.attributes.aBlend.needsUpdate=true;
   };
 
+  /* Marken är belyst (MeshStandard) men foto-sfären är obelyst -> marken blir
+   * ljusare. uGroundMul mörkar hela marken (foto + gräs) så den matchar kupolen
+   * och ser mer verklig ut.                                                     */
+  var GDARK = { mul: 0.72 };
   matGrass.onBeforeCompile=function(shader){
     shader.uniforms.uPano={ value: window._panoTex };
+    shader.uniforms.uGroundMul={ value: GDARK.mul };
+    matGrass.userData._shader = shader;
     shader.vertexShader='attribute vec2 photoUv;\nattribute float aBlend;\nvarying vec2 vPhotoUv;\nvarying float vBlend;\n'+shader.vertexShader;
     shader.vertexShader=shader.vertexShader.replace('#include <uv_vertex>',
       '#include <uv_vertex>\n\tvPhotoUv = photoUv;\n\tvBlend = aBlend;');
-    shader.fragmentShader='uniform sampler2D uPano;\nvarying vec2 vPhotoUv;\nvarying float vBlend;\n'+
+    shader.fragmentShader='uniform sampler2D uPano;\nuniform float uGroundMul;\nvarying vec2 vPhotoUv;\nvarying float vBlend;\n'+
       'vec3 panoToLinear(vec3 c){ return mix( c*0.0773993808, pow(c*0.9478672986+0.0521327014, vec3(2.4)), step(vec3(0.04045), c) ); }\n'+
       shader.fragmentShader;
     shader.fragmentShader=shader.fragmentShader.replace('#include <map_fragment>',
-      '#include <map_fragment>\n\t{\n\t\tvec3 photoLin = panoToLinear( texture2D( uPano, vPhotoUv ).rgb );\n\t\tdiffuseColor.rgb = mix( diffuseColor.rgb, photoLin, clamp(vBlend,0.0,1.0) );\n\t}');
+      '#include <map_fragment>\n\t{\n\t\tvec3 photoLin = panoToLinear( texture2D( uPano, vPhotoUv ).rgb );\n\t\tdiffuseColor.rgb = mix( diffuseColor.rgb, photoLin, clamp(vBlend,0.0,1.0) );\n\t\tdiffuseColor.rgb *= uGroundMul;\n\t}');
   };
+  window._setGroundDark=function(m){ GDARK.mul=m; var sh=matGrass.userData._shader; if(sh&&sh.uniforms.uGroundMul) sh.uniforms.uGroundMul.value=m; };
 
   var ground=new THREE.Mesh(gg, matGrass); ground.receiveShadow=true; scene.add(ground);
   window._ground=ground;
