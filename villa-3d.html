@@ -1322,17 +1322,17 @@ var TERR={"x0":-20,"z0":-44,"step":2,"ncol":27,"nrow":38,"ffl":54.55,"grid":[[49
   /* SAT: ortofoto (satellit) draperat på cirkeln runt huset. Inpassat via
    * situationsplanen: world(x,z) -> situationsplan (huset läggs exakt på den blå
    * villamarkeringen, indraget från tomtgränsen) -> ortofoto (registrerat mot
-   * situationsplanen på gränspunkterna 2466 och 5648). world(x,z) -> ortofoto-
-   * pixel, c=[a,b,c, d,e,f] (skala ~19 px/m). Villans skala tas från den blå
-   * rektangelns kontur (31,2 px/m i planen) – EJ från N/V/O/S-bokstäverna som
-   * ligger utanför hörnen (det gjorde tidigare huset ~18% för stort).
-   * OBS 1: modellens husframe är axelriktad men huset är i verkligheten vridet
-   *   ~50°, så markens väderstreck följer nu situationsplanen (inte 360-fotot).
-   *   360-fotot/höjddata behöver därför vridas för att matcha (senare).
-   * OBS 2: ortofotot (ChatGPT-bild) är geometriskt något förvrängt, så gränsen
-   *   matchar inte på pixeln; fastighetsgränserna ligger kvar i gult (tillfälligt). */
+   * situationsplanen på gränspunkterna 2466 och 5648). Skala (~19 px/m) och läge
+   * (villans mitt i ortofotot) tas därifrån; villans storlek från den blå
+   * rektangelns kontur, 31,2 px/m i planen (EJ N/V/O/S-bokstäverna utanför
+   * hörnen – det gjorde tidigare huset ~18% för stort).
+   * Orientering: bildens upp = norr = scenens norr (world (0.796, 0.606), samma
+   * som kompassen och 360-fotot). world(x,z) -> ortofoto-pixel, c=[a,b,c, d,e,f],
+   * determinant > 0 (ingen spegling).
+   * OBS: ortofotot (ChatGPT-bild) är geometriskt något förvrängt, så gränsen
+   *   matchar inte exakt på pixeln; gränserna ligger kvar i gult (tillfälligt). */
   var SAT = { W:1588, H:990,
-              c:[9.97029,-16.14528,844.00613, 16.14528,9.97029,238.06143], tex:null };
+              c:[-11.49905,15.09466,871.77439, -15.09466,-11.49905,529.44102], tex:null };
   function satUvOf(wx,wz){
     var px=SAT.c[0]*wx+SAT.c[1]*wz+SAT.c[2], py=SAT.c[3]*wx+SAT.c[4]*wz+SAT.c[5];
     return [ px/SAT.W, 1 - py/SAT.H ];              /* -> UV (flipY-konvention) */
