@@ -4,5 +4,5 @@ Situationsplan 260707.pdf visar fastighetsgränserna, gränspunkterna och husets
 
 urklipp3.tif är höjddata av fastigheten med koordinater som används för att skapa rätt höjd på marken.
 
-Bilden PANO_20260710_124810_0.jpg är en 360-foto som används för att skapa omgivningens utseende.
+Bilden pano-360.jpg är det 360-foto som används för att skapa omgivningens utseende.
 
