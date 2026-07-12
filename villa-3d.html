@@ -1319,15 +1319,18 @@ var TERR={"x0":-20,"z0":-44,"step":2,"ncol":27,"nrow":38,"ffl":54.55,"grid":[[49
                 rMax:38, rNadir:1.0, rIn:16, rOut:24 };
   function smooth(a,b,x){ var t=Math.max(0,Math.min(1,(x-a)/(b-a))); return t*t*(3-2*t); }
 
-  /* SAT: ortofoto (satellit) draperat på cirkeln runt huset. Inpassat mot
-   * scenens verkliga väderstreck (bekräftat av 360-fotot + kompassen): norr =
-   * world (0.796, 0.606), hus 24 rakt söderut. Fotot är taget från husets mitt,
-   * så u=0.33 (hus 24) och u=0.80 (vägen/norr) ger azimut theta = 2*pi*u - 4.4113.
-   * world(x,z) -> ortofoto-pixel via en similaritet (enhetlig skala ~21,5 px/m,
-   * determinant > 0 = ingen spegling), c=[a,b,c, d,e,f].
-   * OBS: ortofotot har fastighetsgränserna inritade i gult (tillfälligt).        */
+  /* SAT: ortofoto (satellit) draperat på cirkeln runt huset. Inpassat via
+   * situationsplanen: world(x,z) -> situationsplan (huset läggs exakt på den blå
+   * villamarkeringen, indraget från tomtgränsen) -> ortofoto (registrerat mot
+   * situationsplanen på gränspunkterna 2466 och 5648). world(x,z) -> ortofoto-
+   * pixel, c=[a,b,c, d,e,f] (skala ~22 px/m).
+   * OBS 1: modellens husframe är axelriktad men huset är i verkligheten vridet
+   *   ~50°, så markens väderstreck följer nu situationsplanen (inte 360-fotot).
+   *   360-fotot/höjddata behöver därför vridas för att matcha (senare).
+   * OBS 2: ortofotot (ChatGPT-bild) är geometriskt något förvrängt, så gränsen
+   *   matchar inte på pixeln; fastighetsgränserna ligger kvar i gult (tillfälligt). */
   var SAT = { W:1588, H:990,
-              c:[-13.029,17.114,821.77, -17.114,-13.029,495.88], tex:null };
+              c:[11.7172,-19.00421,844.2231, 19.00421,11.7172,211.58379], tex:null };
   function satUvOf(wx,wz){
     var px=SAT.c[0]*wx+SAT.c[1]*wz+SAT.c[2], py=SAT.c[3]*wx+SAT.c[4]*wz+SAT.c[5];
     return [ px/SAT.W, 1 - py/SAT.H ];              /* -> UV (flipY-konvention) */
