@@ -528,6 +528,7 @@ function decorate(w, o){
   if (o.b > Y0) fbox(o.from, o.b - f, o.to, o.b); /* fönsterbänk */
 
   if (o.type === 'window' || o.type === 'glassdoor'){
+    if (o.open){ openLeaves(w, o); return; }   /* öppen altandörr – inga fasta rutor */
     /* glas + spröjs (antal sektioner styrs av o.sections, standard 2) */
     var pane, nSec = o.sections || 2;
     if (w.axis==='x'){
@@ -573,6 +574,35 @@ function decorate(w, o){
     }
   }
 }
+/* Öppen altandörr – två glasade dörrblad i svart karm, uppställda utåt mot trädgården.
+   Öppningen lämnas fri (ingen collider) så man kan gå ut. Endast x-vägg (fönsterpartiet). */
+function openLeaves(w, o){
+  var sO = (w.skirt === 'pos') ? -1 : 1;        /* riktning utåt */
+  var hz = w.at + sO*0.03;                       /* gångjärnslinje nära yttre liv */
+  var lw = (o.to - o.from)/2 - 0.03;             /* bladbredd (två blad) */
+  var ht = o.t - o.b, fb = 0.06;                 /* höjd, karmbredd */
+  var openA = 1.7;                               /* ~97° uppställt */
+  [[o.from, 1], [o.to, -1]].forEach(function(hg){
+    var dir = hg[1], cx = dir*lw/2, cy = o.b + ht/2;
+    var g = new THREE.Group();
+    g.position.set(hg[0], 0, hz);
+    g.rotation.y = -sO * dir * openA;
+    var pane = new THREE.Mesh(new THREE.BoxGeometry(lw-0.02, ht-0.02, 0.02), matGlass);
+    pane.position.set(cx, cy, 0); pane.castShadow = false; g.add(pane);
+    var bar = function(bx,by,bwid,bhei){
+      var m = new THREE.Mesh(new THREE.BoxGeometry(bwid, bhei, 0.05), matFrameX);
+      m.position.set(bx, by, 0); m.castShadow = m.receiveShadow = true; g.add(m);
+    };
+    bar(cx, o.t - fb/2, lw, fb);               /* överstycke */
+    bar(cx, o.b + fb/2, lw, fb);               /* understycke */
+    bar(cx - lw/2 + fb/2, cy, fb, ht);         /* karm vid gångjärn */
+    bar(cx + lw/2 - fb/2, cy, fb, ht);         /* karm vid mötesspringa */
+    var kn = new THREE.Mesh(new THREE.CylinderGeometry(0.011,0.011,0.13,8), matSteel);
+    kn.rotation.x = Math.PI/2;
+    kn.position.set(cx - dir*(lw/2 - 0.09), o.b + 1.05, 0.04); g.add(kn);
+    scene.add(g);
+  });
+}
 
 /* ---------- Planlösning (mått från ritningen, SWEREF-noggrannhet ej nödvändig här) ----------
    x: 0–13,5 (väster→öster) · z: 0–7,5 (norr/ovansida ritning → söder) */
@@ -580,9 +610,9 @@ var walls = [
   /* Yttervägg norr – stora fönsterpartiet */
   {axis:'x', at:0.15, th:0.3, from:0, to:13.5, skirt:'pos', fmat:matFrameX, openings:[
     {from:1.1,  to:3.9,  b:0.6, t:2.2, type:'window', sections:3},  /* 28x16 Ö, tre sektioner, bröstning 60 */
-    {from:4.4,  to:6.2,  b:0.0, t:2.2, type:'glassdoor'}, /* PFD 18x22 */
+    {from:4.4,  to:6.2,  b:0.0, t:2.2, type:'glassdoor', open:true}, /* PFD 18x22 – altandörr, uppställd */
     {from:6.6,  to:8.4,  b:0.0, t:2.2, type:'window'},    /* 18x22 F  */
-    {from:10.6, to:11.5, b:0.0, t:2.2, type:'window'}     /* 9x22 F   */
+    {from:10.6, to:11.5, b:0.0, t:2.2, type:'window', sections:1}  /* 9x22 F – högt köksfönster utan avdelare */
   ]},
   /* Yttervägg söder */
   {axis:'x', at:7.35, th:0.3, from:0, to:13.5, skirt:'neg', fmat:matFrameX, openings:[
