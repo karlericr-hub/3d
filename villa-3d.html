@@ -363,7 +363,7 @@ var matPanel  = new THREE.MeshStandardMaterial({map:makeTex(512, drawPanel, 1/1.
   bumpMap:makeTex(512, drawPanelBump, 1/1.2, 1/1.2), bumpScale:0.012, roughness:.95, side:THREE.DoubleSide});
 var matTegel  = new THREE.MeshStandardMaterial({map:makeTex(512, drawTegel, 1/1.2, 1/1.2),
   bumpMap:makeTex(512, drawTegel, 1/1.2, 1/1.2), bumpScale:0.02, roughness:.85});
-var matFrameX = new THREE.MeshStandardMaterial({color:0x161616, roughness:.45});   /* svart karm */
+var matFrameX = new THREE.MeshStandardMaterial({color:0x161616, roughness:.45, envMapIntensity:0.05});   /* svart karm */
 var matDoorX  = new THREE.MeshStandardMaterial({color:0x131313, roughness:.5});    /* svart ytterdörr */
 
 /* ---------- Hjälpare ---------- */
