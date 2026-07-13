@@ -3169,8 +3169,8 @@ var matFabric = new THREE.MeshStandardMaterial({color:0x8b8f96, roughness:.95});
 var matFabricL= new THREE.MeshStandardMaterial({color:0xb9b4a8, roughness:.95});
 var matWhite  = new THREE.MeshStandardMaterial({color:0xf7f7f5, roughness:.35});
 var matDark   = new THREE.MeshStandardMaterial({color:0x2c2e30, roughness:.5});
-var matCounter= new THREE.MeshStandardMaterial({color:0x3a3c3e, roughness:.25});
-var matSteel  = new THREE.MeshStandardMaterial({color:0xb8bcc0, roughness:.25, metalness:.85});
+var matCounter= new THREE.MeshStandardMaterial({color:0x3a3c3e, roughness:.25, envMapIntensity:.3});
+var matSteel  = new THREE.MeshStandardMaterial({color:0xb8bcc0, roughness:.28, metalness:.85, envMapIntensity:.4});
 var matCab    = new THREE.MeshStandardMaterial({color:0xdfe0dc, roughness:.5});
 var matBlack  = new THREE.MeshStandardMaterial({color:0x151515, roughness:.3});
 
@@ -3391,11 +3391,15 @@ function decorate(w, o){
       box(cK,y1,a1, cOut,y2,a2, w.fmat, false);
     }
   }
-  /* karm: sidostycken + överstycke */
-  fbox(o.from - f, Math.max(Y0, o.b - (o.b>Y0?f:0)), o.from, o.t + f);
-  fbox(o.to, Math.max(Y0, o.b - (o.b>Y0?f:0)), o.to + f, o.t + f);
-  fbox(o.from, o.t, o.to, o.t + f);
-  if (o.b > Y0) fbox(o.from, o.b - f, o.to, o.b); /* fönsterbänk */
+  /* karm: sidostycken + överstycke. Fodren skjuter in en aning (ov) i öppningen
+     så väggens smyg-/soffit-/sömsytor begravs i karmen i stället för att ligga i
+     exakt samma plan – annars z-fightar de och karmen flimrar när man rör sig, och
+     den mörka väggen/AO:n bakom lyser igenom på överstycket.                      */
+  var ov = 0.008;
+  fbox(o.from - f, Math.max(Y0, o.b - (o.b>Y0?f:0)), o.from + ov, o.t + f);
+  fbox(o.to - ov, Math.max(Y0, o.b - (o.b>Y0?f:0)), o.to + f, o.t + f);
+  fbox(o.from - ov, o.t - ov, o.to + ov, o.t + f);
+  if (o.b > Y0) fbox(o.from - ov, o.b - f, o.to + ov, o.b + ov); /* fönsterbänk */
 
   if (o.type === 'window' || o.type === 'glassdoor'){
     if (o.open){ openLeaves(w, o); return; }   /* öppen altandörr – inga fasta rutor */
@@ -3600,7 +3604,7 @@ var stair = {x0:7.15, x1:10.15, z0:4.25, z1:5.3, steps:15, depth:0.2, rise:2.8/1
   var matKok    = new THREE.MeshStandardMaterial({color:0xc6cac2, roughness:.5});   /* gröngrå luckor */
   var matKokMork= new THREE.MeshStandardMaterial({color:0x9aa098, roughness:.6});   /* stomme, syns i luckspringorna */
   var matSockel = new THREE.MeshStandardMaterial({color:0x3b3e40, roughness:.7});
-  var matFridge = new THREE.MeshStandardMaterial({color:0xb7bbbe, roughness:.32, metalness:.65});
+  var matFridge = new THREE.MeshStandardMaterial({color:0xb7bbbe, roughness:.4, metalness:.55, envMapIntensity:.35});
   var matSplash = new THREE.MeshStandardMaterial({color:0xf4f5f4, roughness:.25});
 
   function funkisHandle(xFace, y, z, len){
@@ -3632,7 +3636,7 @@ var stair = {x0:7.15, x1:10.15, z0:4.25, z1:5.3, steps:15, depth:0.2, rise:2.8/1
 
   /* Bänkskåp med lådfronter */
   box(12.645,0.1,0.95, 13.19,0.88,4.0, matKokMork, false);
-  var matBench = new THREE.MeshStandardMaterial({color:0xc3c7ca, metalness:.8, roughness:.3});
+  var matBench = new THREE.MeshStandardMaterial({color:0xc3c7ca, metalness:.8, roughness:.34, envMapIntensity:.4});
   box(12.55,0.88,0.9, 13.2,0.925,4.05, matBench, false);        /* rostfri diskbänk i hela längden */
   [[0.955,1.72],[1.726,2.60],[3.02,3.995]].forEach(function(sec){
     var zc = (sec[0]+sec[1])/2;
@@ -3867,7 +3871,7 @@ var stair = {x0:7.15, x1:10.15, z0:4.25, z1:5.3, steps:15, depth:0.2, rise:2.8/1
   /* spegel i entrén */
   box(9.62,0.85,5.46, 10.12,1.95,5.475, matSteel, false);
   var mir = new THREE.Mesh(new THREE.PlaneGeometry(0.44,1.04),
-    new THREE.MeshStandardMaterial({color:0xd8dee2, metalness:1, roughness:.03}));
+    new THREE.MeshStandardMaterial({color:0xd8dee2, metalness:.15, roughness:.2, envMapIntensity:.3}));
   mir.position.set(9.87,1.4,5.478); scene.add(mir);
 
   /* krukväxter */
