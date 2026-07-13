@@ -4483,7 +4483,8 @@ function updateRoom(x,z){
 }
 
 /* ---------- Spelare & kontroller ---------- */
-var player = {x:12.4, z:6.05, yaw:Math.PI/2, pitch:0, r:0.26, eye:1.6, h:0};
+/* startar 4 m utanför entrén, blickande in mot dörren (yaw π/2 = -x) */
+var player = {x:17.5, z:6.05, yaw:Math.PI/2, pitch:0, r:0.26, eye:1.6, h:0};
 window._player = player;   /* debughook: flytta kameran från konsolen */
 var keys = {}, locked = false, started = false;
 var joyVec = {x:0, y:0};
