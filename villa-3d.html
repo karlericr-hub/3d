@@ -4110,7 +4110,7 @@ var stair = {x0:7.15, x1:10.15, z0:4.25, z1:5.3, steps:15, depth:0.2, rise:2.8/1
 
 /* ---------- Belysning ---------- */
 scene.add(new THREE.AmbientLight(0xffffff, 0.10));
-var hemi = new THREE.HemisphereLight(0xbdd7ee, 0x8a7a5f, 0.26); scene.add(hemi);
+var hemi = new THREE.HemisphereLight(0xbdd7ee, 0xb0aea8, 0.26); scene.add(hemi);   /* neutral markfärg (ej gröngul) */
 var sun = new THREE.DirectionalLight(0xffe9c4, 1.65);
 sun.position.set(6.6, 9.0, -9.5);   /* verklig SV-eftermiddagssol mot fönsterpartiet, Handen 59°N */
 sun.target.position.set(6.75, 0, 3.75);
@@ -4143,8 +4143,8 @@ lamp(11.2,6.2, 0.30, 6);  lamp(4.3,4.8, 0.22, 5);
   var g = cv.getContext('2d');
   var gr = g.createLinearGradient(0,0,0,512);
   gr.addColorStop(0,'#3f7cc2'); gr.addColorStop(0.42,'#8db9de');
-  gr.addColorStop(0.55,'#dcebf3'); gr.addColorStop(0.58,'#9dad86');
-  gr.addColorStop(1,'#68794f');
+  gr.addColorStop(0.55,'#dcebf3'); gr.addColorStop(0.58,'#cfd2cf');
+  gr.addColorStop(1,'#b6b9b6');   /* neutral ljusgrå "mark" – annars grönfärgas nedåtvända ytor inomhus */
   g.fillStyle = gr; g.fillRect(0,0,1024,512);
   for (var i=0;i<30;i++){  /* mjuka moln */
     var cx = Math.random()*1024, cy = 40+Math.random()*170, r = 20+Math.random()*55;
