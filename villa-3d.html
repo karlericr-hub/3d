@@ -3287,9 +3287,28 @@ function scaleUV(geo, sx, sy, sz){
   }
   uv.needsUpdate = true;
 }
+/* Världsprojicerad UV (i meter) – texturen fästs mot husets koordinater i stället
+   för mot varje boxsegment. Gör att den stående panelen löper sömlöst över
+   våningsplan, fönstersmygar och segment utan att mönstret hoppar i skarvarna. */
+function worldUV(geo, cx, cy, cz){
+  var pos = geo.attributes.position, nrm = geo.attributes.normal, uv = geo.attributes.uv;
+  for (var i=0; i<pos.count; i++){
+    var wx = pos.getX(i)+cx, wy = pos.getY(i)+cy, wz = pos.getZ(i)+cz;
+    var ax = Math.abs(nrm.getX(i)), ay = Math.abs(nrm.getY(i)), az = Math.abs(nrm.getZ(i));
+    var u, v;
+    if (ax >= ay && ax >= az){ u = wz; v = wy; }        /* ±X-yta */
+    else if (ay >= ax && ay >= az){ u = wx; v = wz; }   /* ±Y-yta */
+    else { u = wx; v = wy; }                            /* ±Z-yta */
+    uv.setXY(i, u, v);
+  }
+  uv.needsUpdate = true;
+}
 function box(x1,y1,z1,x2,y2,z2,mat,col){
   var g = new THREE.BoxGeometry(Math.abs(x2-x1),Math.abs(y2-y1),Math.abs(z2-z1));
-  scaleUV(g, Math.abs(x2-x1), Math.abs(y2-y1), Math.abs(z2-z1));
+  if (mat === matPanel || mat === matPanelH)
+    worldUV(g, (x1+x2)/2, (y1+y2)/2, (z1+z2)/2);
+  else
+    scaleUV(g, Math.abs(x2-x1), Math.abs(y2-y1), Math.abs(z2-z1));
   var m = new THREE.Mesh(g, mat);
   m.position.set((x1+x2)/2,(y1+y2)/2,(z1+z2)/2);
   m.castShadow = true; m.receiveShadow = true;
