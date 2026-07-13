@@ -3204,6 +3204,36 @@ function drawPanelBump(g, s){
     x += w;
   }
 }
+/* Liggande variant – brädor och ådring löper i U-led (för vindskivor/takfot) */
+function drawPanelH(g, s){
+  g.fillStyle = '#191919'; g.fillRect(0,0,s,s);
+  var y = 0;
+  while (y < s){
+    var w = 26 + (Math.random()*40|0);          /* brädor 6–15 cm */
+    if (y + w > s - 14) w = s - y;
+    var v = 24 + (Math.random()*13|0);          /* matt kulörvariation, slamfärg */
+    g.fillStyle = 'rgb('+(v+2)+','+(v+1)+','+v+')';
+    g.fillRect(0, y+2, s, w-4);
+    g.strokeStyle = 'rgba(82,78,72,0.22)';      /* träådring som lyser igenom */
+    for (var k=0;k<3;k++){
+      g.beginPath(); var ly = y+4+Math.random()*(Math.max(4,w-8));
+      g.moveTo(0,ly); g.lineTo(s, ly+(Math.random()*8-4));
+      g.lineWidth = 1; g.stroke();
+    }
+    g.fillStyle = 'rgba(0,0,0,0.85)'; g.fillRect(0,y,s,2);   /* skuggspringa */
+    y += w;
+  }
+}
+function drawPanelBumpH(g, s){
+  g.fillStyle = '#151515'; g.fillRect(0,0,s,s);
+  var y = 0;
+  while (y < s){
+    var w = 26 + (Math.random()*40|0);
+    if (y + w > s - 14) w = s - y;
+    g.fillStyle = '#b5b5b5'; g.fillRect(0,y+2,s,w-4);
+    y += w;
+  }
+}
 /* Svarta tvåkupiga takpannor (512 px = 1,2 m) */
 function drawTegel(g, s){
   g.fillStyle = '#0c0d0e'; g.fillRect(0,0,s,s);
@@ -3231,6 +3261,8 @@ function drawTegel(g, s){
 }
 var matPanel  = new THREE.MeshStandardMaterial({map:makeTex(512, drawPanel, 1/1.2, 1/1.2),
   bumpMap:makeTex(512, drawPanelBump, 1/1.2, 1/1.2), bumpScale:0.012, roughness:.95, side:THREE.DoubleSide});
+var matPanelH = new THREE.MeshStandardMaterial({map:makeTex(512, drawPanelH, 1/1.2, 1/1.2),
+  bumpMap:makeTex(512, drawPanelBumpH, 1/1.2, 1/1.2), bumpScale:0.012, roughness:.95, side:THREE.DoubleSide});
 var matTegel  = new THREE.MeshStandardMaterial({map:makeTex(512, drawTegel, 1/1.2, 1/1.2),
   bumpMap:makeTex(512, drawTegel, 1/1.2, 1/1.2), bumpScale:0.02, roughness:.85});
 var matFrameX = new THREE.MeshStandardMaterial({color:0x161616, roughness:.45, envMapIntensity:0.05});   /* svart karm */
@@ -4384,13 +4416,15 @@ box(-0.02,5.3,-0.02, 13.52,5.62,7.52, matFasad, false);
   /* vindskivor och takfotsbrädor i samma panel som fasaden */
   [-0.325, 13.825].forEach(function(gx){
     [[1.752,-A28],[5.748,A28]].forEach(function(s2){
-      var b = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.24, slopeLen), matPanel);
+      var vg = new THREE.BoxGeometry(0.05, 0.24, slopeLen);
+      scaleUV(vg, 0.05, 0.24, slopeLen);          /* brädans ådring följer längden */
+      var b = new THREE.Mesh(vg, matPanelH);
       b.position.set(gx, 6.5, s2[0]); b.rotation.x = s2[1];
       b.castShadow = true; scene.add(b);
     });
   });
-  box(-0.35,5.32,-0.34, 13.85,5.52,-0.28, matPanel, false);     /* takfot norr */
-  box(-0.35,5.32,7.78, 13.85,5.52,7.84, matPanel, false);       /* takfot söder */
+  box(-0.35,5.32,-0.34, 13.85,5.52,-0.28, matPanelH, false);    /* takfot norr */
+  box(-0.35,5.32,7.78, 13.85,5.52,7.84, matPanelH, false);      /* takfot söder */
   /* öppen ytterdörr i svart, uppställd utåt mot fasaden */
   var yd = new THREE.Group(); yd.position.set(13.56, 0, 5.62); yd.rotation.y = 1.42;
   var ydLeaf = new THREE.Mesh(new THREE.BoxGeometry(0.96, 2.06, 0.05), matDoorX);
