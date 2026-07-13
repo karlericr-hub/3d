@@ -4362,7 +4362,13 @@ var TERR={"x0":-20,"z0":-44,"step":2,"ncol":27,"nrow":38,"ffl":54.55,"grid":[[49
   box(-0.15,-1.4,-0.15, 13.65,-0.02,7.65,
     new THREE.MeshStandardMaterial({color:0x3a3d3f, roughness:.85}), false);
 })();
-box(13.5,-0.05,5.3, 14.3,0.14,6.9, new THREE.MeshStandardMaterial({color:0xa19c93, roughness:.9}), false); /* entrétrapp */
+/* entrétrappa: två steg upp till entrén – översta steget (avsatsen) ligger
+   strax under dörrbladets underkant (~0.01), så trappan aldrig skymmer dörren */
+(function(){
+  var matStep = new THREE.MeshStandardMaterial({color:0xa19c93, roughness:.9});
+  box(14.05,-0.6,5.2,  14.65,-0.15,7.0, matStep, false);  /* nedre steget */
+  box(13.5, -0.6,5.3,  14.05,-0.02,6.9, matStep, false);  /* övre steget / avsats, under dörrbladet */
+})();
 /* husets ytterskal: bjälklagsband mellan våningarna + band över övervåningen */
 /* ==================== UTSIDA: svart slamfärgad funkispanel + sadeltak 28° ==================== */
 /* bjälklagsband (döljs bakom panelen, tätar mellanbjälklaget) */
@@ -4552,7 +4558,8 @@ function floorH(x, z, cur){
     return Math.min(2.8, i*stair.rise);
   }
   if (cur > 1.5) return 2.8;   /* uppe på övervåningen */
-  if (x > 13.45 && x < 14.32 && z > 5.28 && z < 6.92) return 0.14;  /* entrétrappen */
+  if (x > 13.45 && x < 14.08 && z > 5.25 && z < 6.95) return -0.02;  /* entré: övre steget/avsats */
+  if (x > 13.45 && x < 14.68 && z > 5.15 && z < 7.05) return -0.15;  /* entré: nedre steget */
   /* utomhus: följ terrängen om vi är utanför husets fotavtryck */
   return 0;
 }
