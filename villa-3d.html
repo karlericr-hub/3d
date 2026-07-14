@@ -3267,6 +3267,10 @@ var matTegel  = new THREE.MeshStandardMaterial({map:makeTex(512, drawTegel, 1/1.
   bumpMap:makeTex(512, drawTegel, 1/1.2, 1/1.2), bumpScale:0.02, roughness:.85});
 var matFrameX = new THREE.MeshStandardMaterial({color:0x161616, roughness:.45, envMapIntensity:0.05});   /* svart karm */
 var matDoorX  = new THREE.MeshStandardMaterial({color:0x131313, roughness:.5});    /* svart ytterdörr */
+/* r128 tolkar färgvärdet som linjärt medan utgången är sRGB-kodad – utan
+   konvertering renderas de "svarta" karmarna som varmgrå i solljus */
+matFrameX.color.convertSRGBToLinear();
+matDoorX.color.convertSRGBToLinear();
 
 /* ---------- Hjälpare ---------- */
 var colliders = [];
@@ -3431,9 +3435,10 @@ function decorate(w, o){
       else box(w.at-ft/2,y1,a1,w.at+ft/2,y2,a2,fm,false);
       return;
     }
-    /* vit smyg hela vägen – endast yttersta 6 cm svart */
+    /* svart smyg från fasadlivet in till glasets innerliv, vit därinnanför –
+       karmen läses som svart utifrån men behåller den vita insidan */
     var sgn = ip ? -1 : 1;
-    var cOut = w.at + sgn*ft/2, cK = w.at + sgn*(ft/2 - 0.06), cIn = w.at - sgn*ft/2;
+    var cOut = w.at + sgn*ft/2, cK = w.at - sgn*0.012, cIn = w.at - sgn*ft/2;
     if (w.axis==='x'){
       box(a1,y1,cIn, a2,y2,cK, matFrame, false);
       box(a1,y1,cK, a2,y2,cOut, w.fmat, false);
