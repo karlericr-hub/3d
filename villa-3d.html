@@ -3158,6 +3158,26 @@ var matWallWC = new THREE.MeshStandardMaterial({map:makeTex(512, drawWallTile, 1
   bumpMap:makeTex(512, drawWallTileBump, 1/0.4, 1/0.4), bumpScale:0.006, roughness:.18, metalness:.05});
 var matCeil   = new THREE.MeshStandardMaterial({color:0xffffff, emissive:0xffffff, emissiveIntensity:0.42, roughness:1});
 var matFrame  = new THREE.MeshStandardMaterial({color:0xffffff, roughness:.4});
+/* Carrara-marmor till fönsterbänkarna – ljus vitgrå botten med mjuka grå ådror */
+function drawCarrara(g, s){
+  g.fillStyle = '#f4f4f2'; g.fillRect(0,0,s,s);
+  var grd = g.createLinearGradient(0,0,s,s);          /* svag kall grundskiftning */
+  grd.addColorStop(0,'rgba(226,229,232,0.35)');
+  grd.addColorStop(1,'rgba(244,244,242,0)');
+  g.fillStyle = grd; g.fillRect(0,0,s,s);
+  for (var i=0;i<18;i++){
+    g.strokeStyle = 'rgba(118,126,137,'+(0.05+Math.random()*0.13)+')';
+    g.lineWidth = 0.5+Math.random()*2.0;
+    g.beginPath();
+    var x0 = Math.random()*s, y0 = Math.random()*s;
+    g.moveTo(x0,y0);
+    g.bezierCurveTo(x0+50-Math.random()*100, y0+100*Math.random(),
+                    x0+110-Math.random()*220, y0+200*Math.random(),
+                    x0+160-Math.random()*320, y0+300*Math.random());
+    g.stroke();
+  }
+}
+var matSill   = new THREE.MeshStandardMaterial({map:makeTex(512, drawCarrara, 1/0.6, 1/0.6), roughness:.22, metalness:.04});
 var matGlass  = new THREE.MeshStandardMaterial({color:0xdceef5, transparent:true, opacity:0.07, roughness:.2, metalness:0, envMapIntensity:0.12, side:THREE.DoubleSide});
 /* Mörk "utsida" på glaset – ligger som ett tunt skikt strax utanför rutan och
    renderas endast med framsidan (FrontSide). Utifrån möter kameran framsidan
@@ -3455,7 +3475,19 @@ function decorate(w, o){
   fbox(o.from - f, Math.max(Y0, o.b - (o.b>Y0?f:0)), o.from + ov, o.t + f);
   fbox(o.to - ov, Math.max(Y0, o.b - (o.b>Y0?f:0)), o.to + f, o.t + f);
   fbox(o.from - ov, o.t - ov, o.to + ov, o.t + f);
-  if (o.b > Y0) fbox(o.from - ov, o.b - f, o.to + ov, o.b + ov); /* fönsterbänk */
+  if (o.b > Y0) fbox(o.from - ov, o.b - f, o.to + ov, o.b + ov); /* smyg-botten */
+
+  /* Fönsterbänk i Carrara-marmor – projicerad hylla på insidan vid bröstningen.
+     Endast fönster med bröstning (o.b > Y0); altandörrar i golvnivå får ingen. */
+  if (o.type === 'window' && o.b > Y0){
+    var intDir = ip ? 1 : -1;                    /* riktning in mot rummet */
+    var sTh = 0.04, sProj = 0.055, sOv = 0.035;  /* tjocklek, utskjut, sidoöverhäng */
+    var yb = o.b - sTh, yt = o.b + 0.012;        /* överkant strax över bröstningen */
+    var c1 = w.at - t/2, c2 = w.at + intDir*(t/2 + sProj);
+    var cLo = Math.min(c1,c2), cHi = Math.max(c1,c2);
+    if (w.axis === 'x') box(o.from - sOv, yb, cLo, o.to + sOv, yt, cHi, matSill, false);
+    else                box(cLo, yb, o.from - sOv, cHi, yt, o.to + sOv, matSill, false);
+  }
 
   if (o.type === 'window' || o.type === 'glassdoor'){
     if (o.open){ openLeaves(w, o); return; }   /* öppen altandörr – inga fasta rutor */
