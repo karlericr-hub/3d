@@ -3027,16 +3027,6 @@ function drawGrass(g, s){
     g.fillRect(Math.random()*s, Math.random()*s, 2, 2+Math.random()*3);
   }
 }
-function drawWood(g, s){
-  g.fillStyle = '#a97e4e'; g.fillRect(0,0,s,s);
-  for (var y=0; y<s; y+=6){
-    g.strokeStyle = 'rgba(95,60,25,'+(0.08+Math.random()*0.15)+')';
-    g.beginPath(); g.moveTo(0,y);
-    g.bezierCurveTo(s*0.3, y+Math.random()*6-3, s*0.7, y+Math.random()*6-3, s, y);
-    g.lineWidth = 1+Math.random()*2; g.stroke();
-  }
-}
-
 /* Bump-kartor som ger ytorna relief */
 function drawPlankBump(g, s){
   var rowH = s/16;
@@ -3089,7 +3079,6 @@ var matTileEnt = new THREE.MeshStandardMaterial({map:makeTex(512, drawTileFn([11
   bumpMap:makeTex(512, drawTileBump, 3.9, 1.75), bumpScale:0.008, roughness:.42});
 var matTileKl  = new THREE.MeshStandardMaterial({map:makeTex(512, drawTileFn([176,178,180],14,'#84868a'), 2.0, 3.0),
   bumpMap:makeTex(512, drawTileBump, 2.0, 3.0), bumpScale:0.008, roughness:.38});
-var matWood    = new THREE.MeshStandardMaterial({map:makeTex(512, drawWood, 1, 1), roughness:.6});
 function drawFuru(g, s){
   g.fillStyle = '#dcc190'; g.fillRect(0,0,s,s);
   for (var y=0; y<s; y+=6){
@@ -3772,7 +3761,7 @@ var stair = {x0:7.15, x1:10.15, z0:4.25, z1:5.3, steps:15, depth:0.2, rise:2.8/1
     box(9.755,0.1,sec[0], 9.8,0.88,sec[1], matKok, false);
   });
   box(9.48,0.9,1.02, 11.08,0.945,3.03, matFuru, false);       /* furuskiva */
-  [1.45,2.02,2.6].forEach(function(z){ cyl(9.28,0,z,0.17,0.65,matWood,14); addCol(9.13,z-0.18,9.43,z+0.18); });
+  [1.45,2.02,2.6].forEach(function(z){ cyl(9.28,0,z,0.17,0.65,matFuru,14); addCol(9.13,z-0.18,9.43,z+0.18); });
 })();
 
 /* ---------- Vardagsrum ---------- */
@@ -3781,7 +3770,7 @@ var stair = {x0:7.15, x1:10.15, z0:4.25, z1:5.3, steps:15, depth:0.2, rise:2.8/1
   floorPlane(1.0,0.7,3.8,3.6, new THREE.MeshStandardMaterial({color:0xc4beae, roughness:1}), 0.008);
   floorPlane(1.12,0.82,3.68,3.48, new THREE.MeshStandardMaterial({color:0xd3cec0, roughness:1}), 0.0095);
   /* tv-bänk, tv och soundbar på västra väggen */
-  box(0.35,0.06,1.3, 0.82,0.45,3.0, matWood, true);
+  box(0.35,0.06,1.3, 0.82,0.45,3.0, matFuru, true);
   box(0.32,0.85,1.65, 0.36,1.65,2.75, matBlack, false);
   box(0.36,0.5,1.75, 0.44,0.56,2.65, matDark, false);
   /* soffa i söder, vänd mot norr (som på ritningen) */
@@ -3811,22 +3800,22 @@ var stair = {x0:7.15, x1:10.15, z0:4.25, z1:5.3, steps:15, depth:0.2, rise:2.8/1
   armchair(1.45,0.85);
   armchair(2.6,0.85);
   /* soffbord i mitten med bok och skål */
-  box(1.85,0.4,2.1, 2.75,0.45,2.8, matWood, true);
+  box(1.85,0.4,2.1, 2.75,0.45,2.8, matFuru, true);
   cyl(1.95,0,2.2,0.025,0.4,matDark,8); cyl(2.65,0,2.2,0.025,0.4,matDark,8);
   cyl(1.95,0,2.7,0.025,0.4,matDark,8); cyl(2.65,0,2.7,0.025,0.4,matDark,8);
   box(2.0,0.45,2.3, 2.28,0.48,2.52, new THREE.MeshStandardMaterial({color:0x8c4a3c, roughness:.7}), false);
   cyl(2.5,0.45,2.45, 0.09,0.06, matSteel, 16);
   /* matbord med 6 stolar */
-  box(6.9,0.7,1.5, 9.0,0.75,2.5, matWood, true);
-  box(7.05,0,1.6, 7.13,0.7,2.4, matWood, false);
-  box(8.77,0,1.6, 8.85,0.7,2.4, matWood, false);
+  box(6.9,0.7,1.5, 9.0,0.75,2.5, matFuru, true);
+  box(7.05,0,1.6, 7.13,0.7,2.4, matFuru, false);
+  box(8.77,0,1.6, 8.85,0.7,2.4, matFuru, false);
   function chair(x,z,dir){
-    box(x-0.21,0.42,z-0.21, x+0.21,0.47,z+0.21, matWood, false);
+    box(x-0.21,0.42,z-0.21, x+0.21,0.47,z+0.21, matFuru, false);
     var b;
-    if (dir==='n') b = box(x-0.21,0.47,z+0.15, x+0.21,0.92,z+0.21, matWood, false);
-    else           b = box(x-0.21,0.47,z-0.21, x+0.21,0.92,z-0.15, matWood, false);
+    if (dir==='n') b = box(x-0.21,0.47,z+0.15, x+0.21,0.92,z+0.21, matFuru, false);
+    else           b = box(x-0.21,0.47,z-0.21, x+0.21,0.92,z-0.15, matFuru, false);
     [[-0.18,-0.18],[0.18,-0.18],[-0.18,0.18],[0.18,0.18]].forEach(function(p){
-      box(x+p[0]-0.015,0,z+p[1]-0.015, x+p[0]+0.015,0.42,z+p[1]+0.015, matWood, false);
+      box(x+p[0]-0.015,0,z+p[1]-0.015, x+p[0]+0.015,0.42,z+p[1]+0.015, matFuru, false);
     });
   }
   [7.15,7.7,8.25,8.8].forEach(function(x){ chair(x,1.18,'s'); chair(x,2.82,'n'); });
@@ -3842,16 +3831,16 @@ var stair = {x0:7.15, x1:10.15, z0:4.25, z1:5.3, steps:15, depth:0.2, rise:2.8/1
 
 /* ---------- Sovrum 1 ---------- */
 (function(){
-  box(0.45,0.1,5.5, 2.5,0.42,7.1, matWood, true);          /* säng, gavel väst */
+  box(0.45,0.1,5.5, 2.5,0.42,7.1, matFuru, true);          /* säng, gavel väst */
   softBox(0.55,0.42,5.6, 2.45,0.6,7.0, matWhite, 0.05);      /* madrass */
   softBox(0.88,0.58,5.6, 2.47,0.76,7.0, matFabricL, 0.07);   /* täcke */
   softBox(0.5,0.6,5.66, 0.88,0.78,6.3, matWhite, 0.08);      /* kuddar */
   softBox(0.5,0.6,6.38, 0.88,0.78,7.02, matWhite, 0.08);
-  box(0.45,0.5,5.5,  0.5,1.05,7.1,   matWood, false);      /* huvudgavel */
-  box(0.45,0,5.05, 0.95,0.5,5.45, matWood, true);          /* sängbord */
+  box(0.45,0.5,5.5,  0.5,1.05,7.1,   matFuru, false);      /* huvudgavel */
+  box(0.45,0,5.05, 0.95,0.5,5.45, matFuru, true);          /* sängbord */
   /* garderob + skrivbord (G på ritningen) */
   box(0.4,0,4.28, 1.0,2.2,4.88, matWhite, true);
-  box(1.15,0.7,4.3, 2.35,0.74,4.9, matWood, true);
+  box(1.15,0.7,4.3, 2.35,0.74,4.9, matFuru, true);
   cyl(1.75,0,5.15,0.22,0.45,matDark,14); addCol(1.55,4.95,1.95,5.35);
 })();
 
@@ -3866,7 +3855,7 @@ var stair = {x0:7.15, x1:10.15, z0:4.25, z1:5.3, steps:15, depth:0.2, rise:2.8/1
   box(6.36,0.885,6.63, 6.82,0.905,7.05, matSteel, false);  /* ho */
   cyl(6.84,0.88,6.84, 0.015,0.24, matSteel, 10);
   box(6.92,0,6.55, 7.48,1.9,7.15, matWhite, true);         /* VP 60 cm */
-  box(5.0,0.87,6.52, 6.28,0.9,7.15, matWood, false);       /* avlastningsbänk över maskinerna */
+  box(5.0,0.87,6.52, 6.28,0.9,7.15, matFuru, false);       /* avlastningsbänk över maskinerna */
   box(5.05,1.5,6.5, 5.1,1.55,7.15, matSteel, false);
 })();
 
@@ -4085,14 +4074,14 @@ var stair = {x0:7.15, x1:10.15, z0:4.25, z1:5.3, steps:15, depth:0.2, rise:2.8/1
     box(1.5,F2+1.15,1.95+i*0.32, 1.7,F2+1.76,2.13+i*0.32,
       new THREE.MeshStandardMaterial({color:cCol, roughness:.95}), false);
   });
-  box(2.6,F2+0.1,1.6, 4.2,F2+0.42,3.65, matWood, true);
+  box(2.6,F2+0.1,1.6, 4.2,F2+0.42,3.65, matFuru, true);
   softBox(2.7,F2+0.42,1.7, 4.1,F2+0.6,3.6, matWhite, 0.05);
   softBox(2.68,F2+0.58,1.68, 4.12,F2+0.76,3.3, matFabricL, 0.07);
   softBox(2.75,F2+0.6,3.28, 3.35,F2+0.78,3.58, matWhite, 0.08);
   softBox(3.45,F2+0.6,3.28, 4.05,F2+0.78,3.58, matWhite, 0.08);
-  box(2.6,F2+0.5,3.65, 4.2,F2+1.05,3.7, matWood, false);       /* huvudgavel */
-  box(2.15,F2,3.2, 2.55,F2+0.5,3.6, matWood, true);            /* sängbord */
-  box(4.25,F2,3.2, 4.65,F2+0.5,3.6, matWood, true);
+  box(2.6,F2+0.5,3.65, 4.2,F2+1.05,3.7, matFuru, false);       /* huvudgavel */
+  box(2.15,F2,3.2, 2.55,F2+0.5,3.6, matFuru, true);            /* sängbord */
+  box(4.25,F2,3.2, 4.65,F2+0.5,3.6, matFuru, true);
 
   /* --- Allrum, möblerat som på ritningen: fåtöljerna flankerar bordet, soffan i söder, fri passage till sovrum 4 --- */
   floorPlane(8.0,1.2,11.9,3.6, new THREE.MeshStandardMaterial({color:0xc4beae, roughness:1}), F2+0.008);
@@ -4124,7 +4113,7 @@ var stair = {x0:7.15, x1:10.15, z0:4.25, z1:5.3, steps:15, depth:0.2, rise:2.8/1
   cyl(9.5,F2,1.7,0.025,0.4,matDark,8); cyl(10.5,F2,1.7,0.025,0.4,matDark,8);
   cyl(9.5,F2,2.2,0.025,0.4,matDark,8); cyl(10.5,F2,2.2,0.025,0.4,matDark,8);
   cyl(10.0,F2+0.45,1.95, 0.09,0.06, matSteel, 16);              /* skål */
-  box(9.0,F2,0.4, 11.1,F2+0.5,0.85, matWood, true);             /* sideboard */
+  box(9.0,F2,0.4, 11.1,F2+0.5,0.85, matFuru, true);             /* sideboard */
   box(9.55,F2+0.5,0.55, 10.55,F2+1.1,0.6, matBlack, false);     /* tv */
   cyl(12.75,F2,0.8, 0.14,0.02, matDark, 16);                    /* golvlampa i hörnet */
   cyl(12.75,F2,0.8, 0.015,1.45, matDark, 8);
@@ -4133,12 +4122,12 @@ var stair = {x0:7.15, x1:10.15, z0:4.25, z1:5.3, steps:15, depth:0.2, rise:2.8/1
   addCol(12.6,0.65,12.9,0.95, F2, F2+1.5);
 
   /* --- Sovrum 3: säng, skrivbord, garderob --- */
-  box(0.45,F2+0.1,5.9, 2.45,F2+0.42,7.15, matWood, true);
+  box(0.45,F2+0.1,5.9, 2.45,F2+0.42,7.15, matFuru, true);
   softBox(0.55,F2+0.42,5.98, 2.35,F2+0.6,7.08, matWhite, 0.05);
   softBox(0.9,F2+0.58,6.0, 2.37,F2+0.76,7.06, matFabricL, 0.07);
   softBox(0.52,F2+0.6,6.15, 0.9,F2+0.78,6.9, matWhite, 0.08);
-  box(0.45,F2+0.5,5.9, 0.5,F2+1.05,7.15, matWood, false);
-  box(0.4,F2+0.7,3.85, 1.6,F2+0.74,4.4, matWood, true);        /* skrivbord */
+  box(0.45,F2+0.5,5.9, 0.5,F2+1.05,7.15, matFuru, false);
+  box(0.4,F2+0.7,3.85, 1.6,F2+0.74,4.4, matFuru, true);        /* skrivbord */
   cyl(1.0,F2,4.7,0.22,0.45,matDark,14); addCol(0.8,4.5,1.2,4.9, F2, F2+1.0);
   /* garderobsnisch (G) in i förrådet */
   box(3.66,F2+1.85,5.05, 4.39,F2+1.88,5.54, matWhite, false);    /* hyllplan */
@@ -4150,12 +4139,12 @@ var stair = {x0:7.15, x1:10.15, z0:4.25, z1:5.3, steps:15, depth:0.2, rise:2.8/1
   });
 
   /* --- Sovrum 4: säng, skrivbord, garderob --- */
-  box(9.5,F2+0.1,5.75, 11.5,F2+0.42,7.15, matWood, true);
+  box(9.5,F2+0.1,5.75, 11.5,F2+0.42,7.15, matFuru, true);
   softBox(9.6,F2+0.42,5.83, 11.4,F2+0.6,7.07, matWhite, 0.05);
   softBox(9.95,F2+0.58,5.85, 11.42,F2+0.76,7.05, matFabricL, 0.07);
   softBox(9.57,F2+0.6,6.0, 9.95,F2+0.78,6.9, matWhite, 0.08);
-  box(9.5,F2+0.5,5.75, 9.55,F2+1.05,7.15, matWood, false);
-  box(12.3,F2+0.7,6.55, 13.15,F2+0.74,7.1, matWood, true);     /* skrivbord */
+  box(9.5,F2+0.5,5.75, 9.55,F2+1.05,7.15, matFuru, false);
+  box(12.3,F2+0.7,6.55, 13.15,F2+0.74,7.1, matFuru, true);     /* skrivbord */
   cyl(12.7,F2,6.25,0.22,0.45,matDark,14); addCol(12.5,6.05,12.9,6.45, F2, F2+1.0);
   box(12.4,F2,4.4, 13.15,F2+2.2,5.0, matWhite, true);          /* garderob G */
 
@@ -4175,6 +4164,202 @@ var stair = {x0:7.15, x1:10.15, z0:4.25, z1:5.3, steps:15, depth:0.2, rise:2.8/1
   contactShadow(9.4,5.7, 11.6,7.2, F2+0.006, 0.3);      /* säng sovrum 4 */
 })();
 
+/* ---------- Funkis-inredning: gardiner uppe, mattor, fönsterväxter, hall m.m. ---------- */
+(function(){
+  var F2 = 2.8;
+  var matCurtain = new THREE.MeshStandardMaterial({color:0xe9e4d9, roughness:.95});
+  var matKruka   = new THREE.MeshStandardMaterial({color:0xb0673f, roughness:.8});
+  var matGreen   = new THREE.MeshStandardMaterial({color:0x4a6b3a, roughness:.95});
+  var matShade   = new THREE.MeshStandardMaterial({color:0xefe9dd, roughness:.9, side:THREE.DoubleSide});
+
+  /* gardiner (generell – funkar för både x- och z-väggar), sillängd på övervåningen */
+  function gardin(axis, at, dir, a1, a2, yTop, yBot, ov){
+    ov = (ov===undefined)? 0.03 : ov;
+    var rod = new THREE.Mesh(new THREE.CylinderGeometry(0.012,0.012,(a2-a1)+ov*2+0.06,8), matSteel);
+    if (axis==='x'){ rod.rotation.z = Math.PI/2; rod.position.set((a1+a2)/2, yTop+0.02, at+dir*0.09); }
+    else           { rod.rotation.x = Math.PI/2; rod.position.set(at+dir*0.09, yTop+0.02, (a1+a2)/2); }
+    scene.add(rod);
+    [a1-ov, a2+ov].forEach(function(ap){
+      var c;
+      if (axis==='x') c = box(ap-0.10, yBot, at+dir*0.03, ap+0.10, yTop, at+dir*0.13, matCurtain, false);
+      else            c = box(at+dir*0.03, yBot, ap-0.10, at+dir*0.13, yTop, ap+0.10, matCurtain, false);
+      c.castShadow = false;
+    });
+  }
+  /* övervåningen – norr, söder och öster */
+  gardin('x', 0.3, 1, 1.1, 3.9,  F2+2.34, F2+0.55);   /* sovrum 2 */
+  gardin('x', 0.3, 1, 6.6, 8.4,  F2+2.34, F2+0.55);   /* hall/allrum norr */
+  gardin('x', 0.3, 1, 10.6, 11.5, F2+2.34, F2+0.55);  /* allrum norr */
+  gardin('x', 7.2, -1, 1.1, 2.7, F2+2.34, F2+0.55);   /* sovrum 3 */
+  gardin('x', 7.2, -1, 5.4, 6.2, F2+2.34, F2+0.55);   /* hall söder */
+  gardin('x', 7.2, -1, 11.5, 13.1, F2+2.34, F2+0.55, 0.02); /* sovrum 4, tätt mot östväggen */
+  gardin('z', 13.2, -1, 1.2, 2.2, F2+2.34, F2+0.55);  /* allrum öster */
+  gardin('z', 13.2, -1, 2.9, 3.9, F2+2.34, F2+0.55);
+
+  /* krukväxter i fönstren (pelargon m.fl. på fönsterbänkarna) */
+  function fonsterVaxt(x,y,z,blom){
+    cyl(x,y,z, 0.042, 0.075, matKruka, 12);
+    cyl(x,y+0.072,z, 0.048, 0.012, matKruka, 12);
+    for (var i=0;i<4;i++){
+      var b = new THREE.Mesh(new THREE.SphereGeometry(0.042,7,6), matGreen);
+      b.position.set(x+(Math.random()-0.5)*0.07, y+0.125+Math.random()*0.05, z+(Math.random()-0.5)*0.07);
+      b.castShadow = true; scene.add(b);
+    }
+    if (blom){
+      var fm = new THREE.MeshStandardMaterial({color:0xc4523e, roughness:.9});
+      for (var j=0;j<3;j++){
+        var f = new THREE.Mesh(new THREE.SphereGeometry(0.018,6,5), fm);
+        f.position.set(x+(Math.random()-0.5)*0.08, y+0.185+Math.random()*0.03, z+(Math.random()-0.5)*0.08);
+        scene.add(f);
+      }
+    }
+  }
+  /* bottenvåningen */
+  fonsterVaxt(1.55,0.612,0.25, true);   /* stora fönsterpartiet norr */
+  fonsterVaxt(2.5, 0.612,0.25, false);
+  fonsterVaxt(3.45,0.612,0.25, true);
+  fonsterVaxt(1.6, 0.705,7.27, true);   /* sovrum 1 söder */
+  fonsterVaxt(2.4, 0.705,7.27, false);
+  fonsterVaxt(13.26,1.005,1.45, false); /* kryddkrukor i köksfönstret */
+  fonsterVaxt(13.26,1.005,2.35, false);
+  fonsterVaxt(5.8, 0.9, 6.95, false);   /* på avlastningsbänken vid tvättstugefönstret */
+  /* övervåningen */
+  fonsterVaxt(2.5, F2+0.712,0.25, true);   /* sovrum 2 */
+  fonsterVaxt(7.5, F2+0.712,0.25, false);  /* hall norr */
+  fonsterVaxt(11.05,F2+0.712,0.25, true);  /* allrum norr */
+  fonsterVaxt(1.9, F2+0.705,7.27, true);   /* sovrum 3 */
+  fonsterVaxt(12.3,F2+0.705,7.27, false);  /* sovrum 4 */
+  fonsterVaxt(13.26,F2+0.705,1.7, false);  /* allrum öster */
+
+  /* mattor – randig trasmatta i entrén + runda ullmattor i sovrummen */
+  function drawRag(g, s){
+    var pal = ['#c9c2b4','#a8b5be','#8c6e5a','#d3cec0','#6d7a68','#b5aa93','#40515e'];
+    for (var x=0, i=0; x<s; ){
+      var w2 = 6+(Math.random()*22|0);
+      g.fillStyle = pal[i++%pal.length];
+      g.fillRect(x,0,w2,s); x+=w2;
+    }
+    g.fillStyle = 'rgba(0,0,0,0.06)';   /* svag vävkänsla */
+    for (var y=0; y<s; y+=4) g.fillRect(0,y,s,1);
+  }
+  var matRag = new THREE.MeshStandardMaterial({map:makeTex(256, drawRag, 1, 1), roughness:1});
+  floorPlane(10.3,5.95,12.45,6.55, matRag, 0.022);   /* gångmatta i entrén */
+  function rundMatta(x,z,r,y,c1,c2){
+    var m1 = new THREE.Mesh(new THREE.CircleGeometry(r,28), new THREE.MeshStandardMaterial({color:c1, roughness:1}));
+    m1.rotation.x = -Math.PI/2; m1.position.set(x,y,z); m1.receiveShadow = true; scene.add(m1);
+    var m2 = new THREE.Mesh(new THREE.CircleGeometry(r-0.09,28), new THREE.MeshStandardMaterial({color:c2, roughness:1}));
+    m2.rotation.x = -Math.PI/2; m2.position.set(x,y+0.0015,z); m2.receiveShadow = true; scene.add(m2);
+  }
+  rundMatta(3.0, 6.3, 0.5, 0.009, 0xb8ab97, 0xcac3b2);       /* sovrum 1 */
+  rundMatta(3.4, 1.1, 0.5, F2+0.009, 0xa8b5be, 0xc0c9cf);    /* sovrum 2 */
+  rundMatta(2.95,6.5, 0.5, F2+0.009, 0xb8ab97, 0xcac3b2);    /* sovrum 3 */
+  rundMatta(11.9,6.2, 0.4, F2+0.009, 0x9aa792, 0xb5bfae);    /* sovrum 4 */
+  /* slätvävd matta med bård under matgruppen */
+  floorPlane(6.7,1.0,9.2,3.0, new THREE.MeshStandardMaterial({color:0xb3ac9c, roughness:1}), 0.008);
+  floorPlane(6.82,1.12,9.08,2.88, new THREE.MeshStandardMaterial({color:0xc7c1b2, roughness:1}), 0.0092);
+
+  /* klädhängare i entrén – krokbräda i furu, hatthylla och skobänk (funkis: krom + furu) */
+  (function(){
+    box(10.4,1.45,7.16, 12.2,1.53,7.19, matFuru, false);          /* krokbräda */
+    for (var hx=10.55; hx<=12.05; hx+=0.3){
+      var hk = new THREE.Mesh(new THREE.CylinderGeometry(0.007,0.007,0.07,8), matSteel);
+      hk.rotation.x = Math.PI/2; hk.position.set(hx, 1.47, 7.125); hk.castShadow = true; scene.add(hk);
+      var kn = new THREE.Mesh(new THREE.SphereGeometry(0.011,8,8), matSteel);
+      kn.position.set(hx, 1.47, 7.09); scene.add(kn);
+    }
+    /* hatthylla med furuspjälor på kromkonsoler */
+    [10.5, 12.1].forEach(function(bx){
+      box(bx-0.012,1.72,7.17, bx+0.012,1.9,7.19, matSteel, false);
+      box(bx-0.012,1.88,6.98, bx+0.012,1.9,7.19, matSteel, false);
+    });
+    [[6.99,7.05],[7.07,7.13],[7.15,7.19]].forEach(function(sp){
+      box(10.4,1.9,sp[0], 12.2,1.925,sp[1], matFuru, false);
+    });
+    /* upphängda plagg */
+    [[10.85,0x40515e],[11.45,0x8c6e5a],[11.75,0xa8b5be]].forEach(function(j){
+      softBox(j[0]-0.13,0.62,7.02, j[0]+0.13,1.44,7.17,
+        new THREE.MeshStandardMaterial({color:j[1], roughness:.95}), 0.05);
+    });
+    /* skobänk i furu med kromben + skor under */
+    box(10.5,0.34,6.92, 12.1,0.38,7.16, matFuru, false);
+    [[10.58,6.98],[12.02,6.98],[10.58,7.1],[12.02,7.1]].forEach(function(p){
+      cyl(p[0],0,p[1], 0.011,0.34, matSteel, 8);
+    });
+    [[10.7,0x2c2e30],[11.0,0x6b4a35],[11.6,0x8b8f96]].forEach(function(sk){
+      var sm = new THREE.MeshStandardMaterial({color:sk[1], roughness:.8});
+      softBox(sk[0]-0.045,0.022,6.94, sk[0]+0.045,0.10,7.16, sm, 0.02);
+      softBox(sk[0]+0.06, 0.022,6.94, sk[0]+0.15,0.10,7.16, sm, 0.02);
+    });
+    addCol(10.45,6.88, 12.15,7.2, 0, 0.5);
+    contactShadow(10.45,6.85, 12.15,7.2, 0.013, 0.24);
+  })();
+
+  /* stringhylla i furu med stålgavlar (vardagsrummets västvägg) */
+  (function(){
+    [3.2, 3.9].forEach(function(z){
+      [0.36, 0.6].forEach(function(x){
+        box(x-0.007,1.12,z-0.007, x+0.007,2.02,z+0.007, matDark, false);
+      });
+      [1.19, 1.54, 1.89].forEach(function(y){
+        box(0.36,y,z-0.007, 0.6,y+0.014,z+0.007, matDark, false);
+      });
+    });
+    [1.2, 1.55, 1.9].forEach(function(y){
+      box(0.34,y,3.17, 0.62,y+0.022,3.93, matFuru, false);
+    });
+    /* böcker och en liten vas på hyllplanen */
+    var bx = 3.3;
+    [0x8c4a3c,0x40515e,0x6d7a68,0xb5aa93,0x2c2e30,0x8c6e5a].forEach(function(cB){
+      var bw = 0.035+Math.random()*0.02, bh = 0.16+Math.random()*0.06;
+      box(0.38,1.575,bx, 0.56,1.575+bh,bx+bw, new THREE.MeshStandardMaterial({color:cB, roughness:.8}), false);
+      bx += bw+0.008;
+    });
+    cyl(0.48,1.925,3.35, 0.035,0.12, new THREE.MeshStandardMaterial({color:0x5a6b74, roughness:.4}), 12);
+  })();
+
+  /* funkis-väggklocka mot matplatsen */
+  (function(){
+    var rim = new THREE.Mesh(new THREE.CylinderGeometry(0.14,0.14,0.035,24), matBlack);
+    rim.rotation.x = Math.PI/2; rim.position.set(9.6,1.95,4.082); rim.castShadow = true; scene.add(rim);
+    var face = new THREE.Mesh(new THREE.CircleGeometry(0.122,24),
+      new THREE.MeshStandardMaterial({color:0xf4f3ef, roughness:.5}));
+    face.rotation.y = Math.PI; face.position.set(9.6,1.95,4.06); scene.add(face);
+    var mH = new THREE.Mesh(new THREE.BoxGeometry(0.012,0.07,0.006), matBlack);
+    mH.position.set(9.6,1.978,4.055); scene.add(mH);
+    var mM = new THREE.Mesh(new THREE.BoxGeometry(0.01,0.1,0.006), matBlack);
+    mM.rotation.z = -Math.PI/3; mM.position.set(9.643,1.925,4.055); scene.add(mM);
+  })();
+
+  /* småprylar: skärbräda + fruktskål på köksön, vas med blommor på matbordet */
+  box(10.3,0.945,1.2, 10.78,0.958,1.52, matFuru, false);
+  cyl(10.5,0.945,2.55, 0.11,0.05, new THREE.MeshStandardMaterial({color:0x40515e, roughness:.4}), 18);
+  [[10.45,2.5,0x9aa14e],[10.55,2.62,0xd9843b],[10.44,2.62,0xb04a3a],[10.56,2.5,0x9aa14e]].forEach(function(fr){
+    var f = new THREE.Mesh(new THREE.SphereGeometry(0.036,10,8),
+      new THREE.MeshStandardMaterial({color:fr[2], roughness:.55}));
+    f.position.set(fr[0],1.0,fr[1]); f.castShadow = true; scene.add(f);
+  });
+  cyl(7.95,0.75,2.0, 0.035,0.14, new THREE.MeshStandardMaterial({color:0x5a6b74, roughness:.35}), 12);
+  for (var st=0; st<5; st++){
+    var a = st/5*Math.PI*2;
+    cyl(7.95+Math.cos(a)*0.02, 0.86, 2.0+Math.sin(a)*0.02, 0.003, 0.12, matGreen, 5);
+    var bl = new THREE.Mesh(new THREE.SphereGeometry(0.016,6,5),
+      new THREE.MeshStandardMaterial({color: st%2? 0xe8e3d2 : 0xd9b53b, roughness:.8}));
+    bl.position.set(7.95+Math.cos(a)*0.035, 0.99, 2.0+Math.sin(a)*0.035); scene.add(bl);
+  }
+
+  /* sänglampor på sängborden i sovrum 2 */
+  [[2.35,3.4],[4.45,3.4]].forEach(function(p){
+    cyl(p[0],F2+0.5,p[1], 0.055,0.02, matDark, 12);
+    cyl(p[0],F2+0.5,p[1], 0.009,0.2, matDark, 6);
+    cyl(p[0],F2+0.7,p[1], 0.065,0.1, matShade, 12);
+  });
+  /* böcker på sideboarden i allrummet */
+  [[9.2,0x8c4a3c],[9.27,0x40515e],[9.34,0x6d7a68]].forEach(function(b){
+    box(b[0],F2+0.5,0.55, b[0]+0.05,F2+0.72,0.72,
+      new THREE.MeshStandardMaterial({color:b[1], roughness:.8}), false);
+  });
+})();
+
 /* ---------- Kontaktskuggor & fönsterglöd (fejkad AO + bloom) ---------- */
 (function(){
   contactShadow(1.35,3.1, 3.42,4.05, 0.0105, 0.34);   /* soffa */
@@ -4182,7 +4367,7 @@ var stair = {x0:7.15, x1:10.15, z0:4.25, z1:5.3, steps:15, depth:0.2, rise:2.8/1
   contactShadow(2.45,0.78, 3.47,1.72, 0.0105, 0.3);   /* fåtölj 2 */
   contactShadow(1.75,2.0, 2.85,2.9, 0.0105, 0.26);    /* soffbord */
   contactShadow(0.28,1.2, 0.95,3.1, 0.006, 0.28);     /* tv-bänk */
-  contactShadow(6.75,0.9, 9.2,3.1, 0.006, 0.3);       /* matgrupp */
+  contactShadow(6.75,0.9, 9.2,3.1, 0.0105, 0.3);      /* matgrupp, ovanpå mattan */
   contactShadow(9.35,0.9, 11.2,3.15, 0.006, 0.32);    /* köksö */
   contactShadow(12.3,0.25, 13.25,5.4, 0.006, 0.3);    /* köksrad */
   contactShadow(0.3,5.35, 2.65,7.25, 0.006, 0.3);     /* säng */
