@@ -3472,7 +3472,9 @@ function decorate(w, o){
     var intDir = ip ? 1 : -1;                    /* riktning in mot rummet */
     var sTh = 0.04, sProj = 0.055, sOv = 0.035;  /* tjocklek, utskjut, sidoöverhäng */
     var yb = o.b - sTh, yt = o.b + 0.012;        /* överkant strax över bröstningen */
-    var c1 = w.at - t/2, c2 = w.at + intDir*(t/2 + sProj);
+    /* från glasets innerliv in i rummet – aldrig ut genom fasaden, där ska
+       den svarta utvändiga bänken synas */
+    var c1 = w.at + intDir*0.012, c2 = w.at + intDir*(t/2 + sProj);
     var cLo = Math.min(c1,c2), cHi = Math.max(c1,c2);
     if (w.axis === 'x') box(o.from - sOv, yb, cLo, o.to + sOv, yt, cHi, matSill, false);
     else                box(cLo, yb, o.from - sOv, cHi, yt, o.to + sOv, matSill, false);
