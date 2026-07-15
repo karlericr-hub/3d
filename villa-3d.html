@@ -3274,8 +3274,8 @@ var matPanelH = new THREE.MeshStandardMaterial({map:makeTex(512, drawPanelH, 1/1
   bumpMap:makeTex(512, drawPanelBumpH, 1/1.2, 1/1.2), bumpScale:0.012, roughness:.95, side:THREE.DoubleSide});
 var matTegel  = new THREE.MeshStandardMaterial({map:makeTex(512, drawTegel, 1/1.2, 1/1.2),
   bumpMap:makeTex(512, drawTegel, 1/1.2, 1/1.2), bumpScale:0.02, roughness:.85});
-var matFrameX = new THREE.MeshStandardMaterial({color:0x161616, roughness:.45, envMapIntensity:0.05});   /* svart karm */
-var matDoorX  = new THREE.MeshStandardMaterial({color:0x131313, roughness:.5});    /* svart ytterdörr */
+var matFrameX = new THREE.MeshStandardMaterial({color:0x161616, roughness:.9, envMapIntensity:0.04});   /* svart karm, matt – låg roughness gav vit himmelsspegling i flacka vinklar */
+var matDoorX  = new THREE.MeshStandardMaterial({color:0x131313, roughness:.85});   /* svart ytterdörr */
 /* r128 tolkar färgvärdet som linjärt medan utgången är sRGB-kodad – utan
    konvertering renderas de "svarta" karmarna som varmgrå i solljus */
 matFrameX.color.convertSRGBToLinear();
