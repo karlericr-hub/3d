@@ -31,6 +31,31 @@
     background:rgba(255,255,255,.10);border:1.5px solid rgba(255,255,255,.3);display:none;z-index:5;}
   #knob{position:absolute;left:37px;top:37px;width:46px;height:46px;border-radius:50%;
     background:rgba(255,255,255,.55);}
+  #steps{position:fixed;top:80px;right:14px;width:292px;max-height:calc(100% - 100px);overflow:auto;
+    z-index:11;color:#f2efe8;font-size:12.5px;background:rgba(24,27,31,.82);border-radius:12px;
+    border:1px solid rgba(255,255,255,.12);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+    touch-action:pan-y;-webkit-user-select:none;user-select:none;}
+  #steps header{display:flex;align-items:center;justify-content:space-between;padding:10px 12px 8px;cursor:pointer;}
+  #steps header b{font-size:13.5px;font-weight:600;}
+  #steps header span{opacity:.6;font-size:11px;}
+  #steps .body{padding:0 12px 12px;}
+  #steps.min .body{display:none;}
+  #steps .lev{background:rgba(255,255,255,.06);border-radius:8px;padding:8px 10px;margin-bottom:8px;line-height:1.45;}
+  #steps .lev b{display:block;margin-bottom:2px;}
+  #steps .lev ul{margin:4px 0 0;padding-left:16px;opacity:.82;}
+  #steps label{display:flex;gap:8px;align-items:flex-start;padding:5px 4px;border-radius:6px;cursor:pointer;line-height:1.35;}
+  #steps label:hover{background:rgba(255,255,255,.07);}
+  #steps label .n{flex:0 0 20px;height:20px;border-radius:50%;background:rgba(255,255,255,.14);
+    display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;}
+  #steps label.on .n{background:#e8e2d6;color:#22262b;}
+  #steps label small{display:block;opacity:.6;font-size:11px;}
+  #steps input{margin:3px 0 0;accent-color:#e8e2d6;}
+  #steps .btns{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px;margin-top:10px;}
+  #steps button{font:inherit;font-size:11.5px;padding:6px 0;border-radius:6px;border:0;cursor:pointer;
+    background:rgba(255,255,255,.14);color:#f2efe8;}
+  #steps button:hover{background:rgba(255,255,255,.24);}
+  #steps .keys{margin-top:8px;opacity:.55;font-size:11px;}
+  @media (max-width:600px){ #steps{width:auto;left:12px;right:12px;top:auto;bottom:160px;max-height:45%;} }
 </style>
 </head>
 <body>
@@ -48,11 +73,36 @@
   </svg>
 </div>
 <div id="cross"></div>
+<div id="steps">
+  <header id="stepsHead"><b>Byggordning</b><span id="stepsToggle">dölj ▲</span></header>
+  <div class="body">
+    <div class="lev"><b>0 · Leveransskick (visas alltid)</b>
+      <ul>
+        <li>Färdig utsida: fasad, tak, fönster och dörrar</li>
+        <li>Ytterväggar med plast + installationsskikt, liggande reglar 45×45</li>
+        <li>Betonggolv med golvbrunnar i tvättstuga, badrum och kök</li>
+        <li>Fördelarskåp för golvvärme i tvättstugan</li>
+        <li>Mellanbjälklag med isolering och spånskivor</li>
+        <li>Öppen vind med takstolar</li>
+        <li>Hjärtväggen på nedervåningen</li>
+      </ul>
+    </div>
+    <div id="stepList"></div>
+    <div class="btns">
+      <button id="bNone" title="Endast leveransskick">Leverans</button>
+      <button id="bPrev" title="Ta bort senaste steget">◀ Steg</button>
+      <button id="bNext" title="Lägg till nästa steg">Steg ▶</button>
+      <button id="bAll" title="Visa färdigt hus">Allt</button>
+    </div>
+    <div class="keys" id="stepsKeys"></div>
+  </div>
+</div>
 <div id="joy"><div id="knob"></div></div>
 <div id="start"><div class="card">
   <h2>Välkommen in</h2>
   <p id="startTxt"></p>
   <p style="opacity:.6">Två plan · trappan leder upp till övervåningen · ytterdörren står öppen – gå gärna ut och titta på fasaden</p>
+  <p style="opacity:.6">Huset visas i leveransskick – kryssa i byggstegen i menyn till höger för att se hur det växer fram.</p>
   <div class="go">Kliv in genom entrén</div>
 </div></div>
 
@@ -2935,7 +2985,7 @@ document.getElementById('startTxt').innerHTML = IS_TOUCH ?
   "Vänster spak = gå · svep på högra halvan = titta dig omkring" :
   "Klicka för att låsa muspekaren.<br>WASD / piltangenter = gå · mus = titta · Skift = spring";
 document.getElementById('hint').innerHTML = IS_TOUCH ?
-  "Spak = gå · svep = titta" : "WASD = gå · mus = titta · Skift = spring · Esc = frigör mus";
+  "Spak = gå · svep = titta" : "WASD = gå · mus = titta · Skift = spring · Esc = frigör mus · 1–9 / + − = byggsteg";
 
 /* ---------- Grundinställningar ---------- */
 var H = 2.5;                       // innertakhöjd
@@ -2959,6 +3009,34 @@ scene.fog = new THREE.Fog(0xaecde4, 60, 240);
 
 var camera = new THREE.PerspectiveCamera(70, innerWidth/innerHeight, 0.1, 120);
 camera.rotation.order = 'YXZ';
+
+/* ---------- Byggsteg (lager) ----------
+ * Allt som läggs i scenen märks med de byggsteg som gäller just då (LAYER).
+ * Tom lista = leveransskick, syns alltid. Ett objekt syns när alla dess steg
+ * är ikryssade; '!steg' betyder "syns bara när steget INTE är ikryssat"
+ * (t.ex. byggtrappan som ersätts av den riktiga trappan). Ljuskällor märks
+ * inte – belysningen är densamma i alla skeden. Kolliderare märks likadant så
+ * man kan gå där väggar ännu inte finns. */
+var LAYER = [];
+var LAYER_ON = {};
+function withLayer(l, fn){ var prev = LAYER; LAYER = l; try { fn(); } finally { LAYER = prev; } }
+function layersOn(ls){
+  if (!ls) return true;
+  for (var i=0;i<ls.length;i++){
+    var k = ls[i];
+    if (k.charAt(0) === '!'){ if (LAYER_ON[k.slice(1)]) return false; }
+    else if (!LAYER_ON[k]) return false;
+  }
+  return true;
+}
+scene.add = function(){
+  for (var i=0;i<arguments.length;i++){
+    var o = arguments[i];
+    if (!o.isLight && LAYER.length && !o.userData.layers) o.userData.layers = LAYER.slice();
+    if (o.userData.layers) o.visible = layersOn(o.userData.layers);
+  }
+  return THREE.Object3D.prototype.add.apply(scene, arguments);
+};
 
 /* ---------- Procedurella texturer ---------- */
 function makeTex(px, drawFn, repX, repY){
@@ -3284,12 +3362,117 @@ var matDoorX  = new THREE.MeshStandardMaterial({color:0x131313, roughness:.85});
 matFrameX.color.convertSRGBToLinear();
 matDoorX.color.convertSRGBToLinear();
 
+/* ---------- Byggmaterial för leveransskicket ---------- */
+/* Byggplast (ångspärr) – halvklar film med veck, isoleringen anas bakom, tejpade skarvar (1,2 m) */
+function drawPlast(g, s){
+  g.fillStyle = '#c9cdb8'; g.fillRect(0,0,s,s);            /* isoleringens ton genom filmen */
+  for (var i=0;i<2500;i++){                                   /* fibrig isolering bakom */
+    g.fillStyle = 'rgba(214,200,140,'+(0.10+Math.random()*0.15)+')';
+    g.fillRect(Math.random()*s, Math.random()*s, 1+Math.random()*6, 1);
+  }
+  g.fillStyle = 'rgba(235,240,242,0.35)'; g.fillRect(0,0,s,s); /* filmens blanka hinna */
+  for (var k=0;k<22;k++){                                     /* veck */
+    var x0 = Math.random()*s, y0 = Math.random()*s, l = 40+Math.random()*160, a = Math.random()*Math.PI;
+    var gr = g.createLinearGradient(x0, y0, x0+Math.cos(a+1.57)*10, y0+Math.sin(a+1.57)*10);
+    gr.addColorStop(0,'rgba(255,255,255,0)'); gr.addColorStop(0.5,'rgba(255,255,255,0.55)');
+    gr.addColorStop(1,'rgba(120,125,120,0.15)');
+    g.strokeStyle = gr; g.lineWidth = 2+Math.random()*4;
+    g.beginPath(); g.moveTo(x0, y0);
+    g.quadraticCurveTo(x0+Math.cos(a)*l*0.5+10, y0+Math.sin(a)*l*0.5-10, x0+Math.cos(a)*l, y0+Math.sin(a)*l);
+    g.stroke();
+  }
+  g.fillStyle = 'rgba(120,160,190,0.55)'; g.fillRect(0, s*0.5-6, s, 12);  /* tejpad skarv */
+}
+var matPlast = new THREE.MeshStandardMaterial({map:makeTex(512, drawPlast, 1/1.2, 1/1.2), roughness:.32, metalness:0, envMapIntensity:.6});
+/* Hyvlat konstruktionsvirke (reglar, takstolar, bjälkar) */
+function drawVirke(g, s){
+  g.fillStyle = '#e3cc9c'; g.fillRect(0,0,s,s);
+  for (var y=0; y<s; y+=5){
+    g.strokeStyle = 'rgba(160,115,60,'+(0.05+Math.random()*0.12)+')';
+    g.beginPath(); g.moveTo(0,y);
+    g.bezierCurveTo(s*0.3, y+Math.random()*6-3, s*0.7, y+Math.random()*6-3, s, y);
+    g.lineWidth = 1+Math.random()*2; g.stroke();
+  }
+}
+var matVirke = new THREE.MeshStandardMaterial({map:makeTex(256, drawVirke, 1, 1), roughness:.8});
+/* Stålglättat betonggolv */
+function drawBetong(g, s){
+  g.fillStyle = '#8e8b85'; g.fillRect(0,0,s,s);
+  for (var i=0;i<14000;i++){
+    var v = 130+(Math.random()*60|0);
+    g.fillStyle = 'rgba('+v+','+(v-1)+','+(v-4)+','+(0.15+Math.random()*0.25)+')';
+    g.fillRect(Math.random()*s, Math.random()*s, 1.5, 1.5);
+  }
+  for (var k=0;k<40;k++){                                      /* glättningssvep */
+    var cx = Math.random()*s, cy = Math.random()*s, r = 30+Math.random()*90;
+    g.strokeStyle = 'rgba('+(Math.random()<0.5?'255,255,255':'70,70,70')+',0.018)';
+    g.lineWidth = 6+Math.random()*12;
+    g.beginPath(); g.arc(cx, cy, r, Math.random()*6, Math.random()*6); g.stroke();
+  }
+}
+var matBetong = new THREE.MeshStandardMaterial({map:makeTex(1024, drawBetong, 12.9/3, 6.9/3), roughness:.75});
+/* Golvspånskiva 600 × 2400 med not och spont */
+function drawSpan(g, s){
+  g.fillStyle = '#c9a877'; g.fillRect(0,0,s,s);
+  for (var i=0;i<9000;i++){
+    var v = Math.random();
+    g.fillStyle = v<0.5 ? 'rgba(150,110,60,0.35)' : 'rgba(235,205,150,0.4)';
+    g.fillRect(Math.random()*s, Math.random()*s, 1+Math.random()*4, 1+Math.random()*2);
+  }
+  g.fillStyle = 'rgba(70,50,30,0.6)';
+  g.fillRect(0, 0, s, 2); g.fillRect(0, s/2, s, 2);           /* långa skarvar var 0,6 m */
+  g.fillRect(0, 0, 2, s/2); g.fillRect(s/2, s/2, 2, s/2);     /* förskjutna kortändar */
+  g.fillStyle = 'rgba(40,90,160,0.5)';                          /* tryck på skivan */
+  g.font = 'bold 16px sans-serif'; g.fillText('P6  GOLVSPÅN 22', s*0.1, s*0.3); g.fillText('P6  GOLVSPÅN 22', s*0.6, s*0.8);
+}
+var matSpan = new THREE.MeshStandardMaterial({map:makeTex(1024, drawSpan, 12.9/1.2, 6.9/1.2), roughness:.85});
+/* Mineralull sedd underifrån mellan bjälkarna */
+function drawIsol(g, s){
+  g.fillStyle = '#d9c67e'; g.fillRect(0,0,s,s);
+  for (var i=0;i<7000;i++){
+    g.strokeStyle = Math.random()<0.5 ? 'rgba(170,145,70,0.35)' : 'rgba(245,230,170,0.45)';
+    var x = Math.random()*s, y = Math.random()*s, a = Math.random()*Math.PI;
+    g.beginPath(); g.moveTo(x,y); g.lineTo(x+Math.cos(a)*(3+Math.random()*9), y+Math.sin(a)*(3+Math.random()*9));
+    g.lineWidth = 1; g.stroke();
+  }
+}
+var matIsol = new THREE.MeshStandardMaterial({map:makeTex(512, drawIsol, 12.9/1.2, 6.9/1.2), roughness:1});
+/* Råspont under taket (sedd från vinden) */
+function drawRaspont(g, s){
+  var bw = s/8;
+  for (var i=0;i<8;i++){
+    var l = 62+Math.random()*8;
+    g.fillStyle = 'hsl(36,40%,'+l+'%)'; g.fillRect(0, i*bw, s, bw);
+    g.strokeStyle = 'rgba(150,105,55,0.18)';
+    for (var k=0;k<4;k++){ g.beginPath(); var y = i*bw+3+Math.random()*(bw-6);
+      g.moveTo(0,y); g.lineTo(s, y+Math.random()*4-2); g.lineWidth = 1; g.stroke(); }
+    g.fillStyle = 'rgba(80,55,30,0.55)'; g.fillRect(0, i*bw, s, 2);
+  }
+}
+var matRaspont = new THREE.MeshStandardMaterial({map:makeTex(512, drawRaspont, 14.1/1.0, 4.65/0.96), roughness:.85, side:THREE.DoubleSide});
+var matVindskydd = new THREE.MeshStandardMaterial({color:0x9a9486, roughness:.8, side:THREE.DoubleSide});
+var matRorR = new THREE.MeshStandardMaterial({color:0xc8372d, roughness:.5});
+var matRorB = new THREE.MeshStandardMaterial({color:0x2f6bb3, roughness:.5});
+var matRorG = new THREE.MeshStandardMaterial({color:0x8c8f93, roughness:.6});
+var matElDosa = new THREE.MeshStandardMaterial({color:0x3f7fbf, roughness:.6});
+var LIN = 0.058;   /* installationsskikt 45 + gips 13 mm på ytterväggarnas insida */
+
 /* ---------- Hjälpare ---------- */
 var colliders = [];
 function addCol(x1,z1,x2,z2,y0,y1){
   colliders.push({minX:Math.min(x1,x2), maxX:Math.max(x1,x2),
                   minZ:Math.min(z1,z2), maxZ:Math.max(z1,z2),
-                  y0:(y0===undefined? 0 : y0), y1:(y1===undefined? H : y1)});
+                  y0:(y0===undefined? 0 : y0), y1:(y1===undefined? H : y1),
+                  layers:(LAYER.length ? LAYER.slice() : null)});
+}
+/* Balk mellan två punkter – lokal z längs balken, w = bredd i horisontalled, h = höjd */
+function beam(x1,y1,z1, x2,y2,z2, w, h, mat){
+  var a = new THREE.Vector3(x1,y1,z1), b = new THREE.Vector3(x2,y2,z2);
+  var m = new THREE.Mesh(new THREE.BoxGeometry(w, h, a.distanceTo(b)), mat);
+  m.position.copy(a).add(b).multiplyScalar(0.5);
+  m.lookAt(b);
+  m.castShadow = m.receiveShadow = true;
+  scene.add(m); return m;
 }
 function scaleUV(geo, sx, sy, sz){
   var uv = geo.attributes.uv;
@@ -3405,6 +3588,9 @@ function windowGlow(cx,cy,w2,h2,z){
 
 /* ---------- Väggbyggare ---------- */
 function buildWall(w){
+  /* byggsteg: ytterväggar och hjärtväggen levereras, övriga innerväggar byggs.
+     Fasadpanelen (w.mat satt) följer det steg som gäller när den byggs. */
+  var wl = (w.fmat || w.hjarta || w.mat) ? LAYER : ['iv_gips'];
   var Y0 = w.y0 || 0, Y1 = w.y1 || H;
   var ops = (w.openings||[]).slice().sort(function(a,b){return a.from-b.from;});
   var segs = [], cur = w.from;
@@ -3415,9 +3601,10 @@ function buildWall(w){
     cur = o.to;
   });
   if (cur < w.to) segs.push({a:cur, b:w.to, y0:Y0, y1:Y1, col:true});
-  segs.forEach(function(s){
-    wallBox(w, s.a, s.b, s.y0, s.y1, s.col);
-    /* golvlist längs golvnära väggsegment */
+  withLayer(wl, function(){ segs.forEach(function(s){ wallBox(w, s.a, s.b, s.y0, s.y1, s.col); }); });
+  /* golvlist längs golvnära väggsegment */
+  var sl = w.fmat ? ['gips_yv','snick'] : (w.hjarta ? ['snick'] : ['iv_gips','snick']);
+  withLayer(sl, function(){ segs.forEach(function(s){
     if (s.y0 === Y0 && s.b - s.a > 0.05 && w.skirt !== 'none'){
       var lt = 0.013, lh = 0.07, sk = w.skirt || 'both';
       var dPos = (sk==='both' || sk==='pos'), dNeg = (sk==='both' || sk==='neg');
@@ -3429,11 +3616,73 @@ function buildWall(w){
         if (dPos) box(w.at+w.th/2, Y0, s.a, w.at+w.th/2+lt, Y0+lh, s.b, matFrame, false);
       }
     }
+  }); });
+  if (w.fmat) battens(w, ops, Y0, Y1);
+  else if (!w.mat && !w.hjarta) withLayer(['iv_regel'], function(){ studs(w, ops, Y0, Y1); });
+  if (!w.noDecor) withLayer(w.fmat ? LAYER : sl, function(){ ops.forEach(function(o){ decorate(w, o); }); });
+}
+/* box i väggens koordinater: a = längdled, c = tjockleksled */
+function wbox(w, a1, y1, c1, a2, y2, c2, mat){
+  if (w.axis === 'x') return box(a1, y1, c1, a2, y2, c2, mat, false);
+  return box(c1, y1, a1, c2, y2, a2, mat, false);
+}
+/* Installationsskikt: liggande reglar 45×45 c/c 600 på plasten + reglar runt öppningarna */
+function battens(w, ops, Y0, Y1){
+  var inS = (w.skirt === 'pos') ? 1 : -1;
+  var pl = w.at + inS*(w.th/2 - LIN), pr = pl + inS*0.045;
+  var a0 = w.from + (0.3 - LIN), a1 = w.to - (0.3 - LIN), R = 0.045;
+  [0.02, 0.6, 1.2, 1.8, Y1-Y0-0.065].forEach(function(dy){
+    var y = Y0 + dy, cur = a0;
+    ops.forEach(function(o){
+      if (y + R > o.b - R && y < o.t + R){
+        if (o.from - R > cur) wbox(w, cur, y, pl, o.from - R, y + R, pr, matVirke);
+        cur = Math.max(cur, o.to + R);
+      }
+    });
+    if (a1 > cur) wbox(w, cur, y, pl, a1, y + R, pr, matVirke);
   });
-  if (!w.noDecor) ops.forEach(function(o){ decorate(w, o); });
+  ops.forEach(function(o){
+    wbox(w, o.from - R, Math.max(Y0, o.b - R), pl, o.from, o.t + R, pr, matVirke);
+    wbox(w, o.to, Math.max(Y0, o.b - R), pl, o.to + R, o.t + R, pr, matVirke);
+    wbox(w, o.from, o.t, pl, o.to, o.t + R, pr, matVirke);
+    if (o.b > Y0) wbox(w, o.from, o.b - R, pl, o.to, o.b, pr, matVirke);
+  });
+}
+/* Regelstomme för innervägg: syll, hammarband, reglar c/c 600, dubbla vid öppningar + överliggare */
+function studs(w, ops, Y0, Y1){
+  var sw = w.th - 0.03, c1 = w.at - sw/2, c2 = w.at + sw/2, R = 0.045;
+  var cur = w.from;
+  ops.forEach(function(o){
+    if (o.b <= Y0){ if (o.from > cur) wbox(w, cur, Y0, c1, o.from, Y0+R, c2, matVirke); cur = o.to; }
+  });
+  if (w.to > cur) wbox(w, cur, Y0, c1, w.to, Y0+R, c2, matVirke);
+  wbox(w, w.from, Y1-R, c1, w.to, Y1, c2, matVirke);
+  var pos = [w.from, w.to - R];
+  for (var a = w.from + 0.6; a < w.to - 0.1; a += 0.6) pos.push(a - R/2);
+  ops.forEach(function(o){ pos.push(o.from - R, o.from - 2*R, o.to, o.to + R); });
+  pos.sort(function(p,q){ return p-q; });
+  var last = -99;
+  pos.forEach(function(a){
+    var inOp = ops.some(function(o){ return a + R > o.from && a < o.to; });
+    if (inOp || a < w.from - 0.001 || a + R > w.to + 0.001 || a < last + R - 0.001) return;
+    wbox(w, a, Y0+R, c1, a+R, Y1-R, c2, matVirke); last = a;
+  });
+  ops.forEach(function(o){
+    if (o.t < Y1 - R) wbox(w, o.from - R, o.t, c1, o.to + R, o.t + 0.12, c2, matVirke);
+    if (o.b > Y0) wbox(w, o.from, o.b - R, c1, o.to, o.b, c2, matVirke);
+  });
 }
 function wallBox(w, a, b, y0, y1, col){
   var m = (w.mat || matWall);
+  if (w.fmat){
+    /* yttervägg: stomme med plast mot rummet + installationsskikt/gips som eget byggsteg */
+    var inS = (w.skirt === 'pos') ? 1 : -1;
+    var outF = w.at - inS*w.th/2, face = w.at + inS*w.th/2, pl = face - inS*LIN;
+    var core = wbox(w, a, y0, outF, b, y1, pl, matPlast);
+    if (col){ if (w.axis === 'x') addCol(a, outF, b, pl, y0, y1); else addCol(outF, a, pl, b, y0, y1); }
+    withLayer(['gips_yv'], function(){ wbox(w, a, y0, pl, b, y1, face, matWall); });
+    return core;
+  }
   if (w.axis === 'x') box(a, y0, w.at - w.th/2, b, y1, w.at + w.th/2, m, col);
   else                box(w.at - w.th/2, y0, a, w.at + w.th/2, y1, b, m, col);
 }
@@ -3452,13 +3701,13 @@ function decorate(w, o){
        karmen läses som svart utifrån men behåller den vita insidan */
     var sgn = ip ? -1 : 1;
     var cOut = w.at + sgn*ft/2, cK = w.at - sgn*0.012, cIn = w.at - sgn*ft/2;
-    if (w.axis==='x'){
-      box(a1,y1,cIn, a2,y2,cK, matFrame, false);
-      box(a1,y1,cK, a2,y2,cOut, w.fmat, false);
-    } else {
-      box(cIn,y1,a1, cK,y2,a2, matFrame, false);
-      box(cK,y1,a1, cOut,y2,a2, w.fmat, false);
-    }
+    /* vit smyg/foder = snickerier (byggsteg), svart karm levereras */
+    withLayer(['snick'], function(){
+      if (w.axis==='x') box(a1,y1,cIn, a2,y2,cK, matFrame, false);
+      else              box(cIn,y1,a1, cK,y2,a2, matFrame, false);
+    });
+    if (w.axis==='x') box(a1,y1,cK, a2,y2,cOut, w.fmat, false);
+    else              box(cK,y1,a1, cOut,y2,a2, w.fmat, false);
   }
   /* karm: sidostycken + överstycke. Fodren skjuter in en aning (ov) i öppningen
      så väggens smyg-/soffit-/sömsytor begravs i karmen i stället för att ligga i
@@ -3480,8 +3729,10 @@ function decorate(w, o){
        den svarta utvändiga bänken synas */
     var c1 = w.at + intDir*0.012, c2 = w.at + intDir*(t/2 + sProj);
     var cLo = Math.min(c1,c2), cHi = Math.max(c1,c2);
-    if (w.axis === 'x') box(o.from - sOv, yb, cLo, o.to + sOv, yt, cHi, matSill, false);
-    else                box(cLo, yb, o.from - sOv, cHi, yt, o.to + sOv, matSill, false);
+    withLayer(['snick'], function(){
+      if (w.axis === 'x') box(o.from - sOv, yb, cLo, o.to + sOv, yt, cHi, matSill, false);
+      else                box(cLo, yb, o.from - sOv, cHi, yt, o.to + sOv, matSill, false);
+    });
   }
 
   if (o.type === 'window' || o.type === 'glassdoor'){
@@ -3584,7 +3835,7 @@ var walls = [
     {from:5.6, to:6.6, b:0.0, t:2.1, type:'door'}         /* YD 10x21 – öppen */
   ]},
   /* Innerväggar */
-  {axis:'x', at:4.15, th:0.1, from:0.3, to:10.15, openings:[
+  {axis:'x', at:4.15, th:0.1, from:0.3, to:10.15, hjarta:true, openings:[
     {from:3.8, to:4.9, b:0, t:2.1, type:'open'}           /* öppning till hall */
   ]},
   {axis:'z', at:3.65, th:0.1, from:4.2, to:7.2, openings:[
@@ -3612,20 +3863,65 @@ function floorPlane(x1,z1,x2,z2,mat,y){
   m.position.set((x1+x2)/2, y||0, (z1+z2)/2);
   m.receiveShadow = true; scene.add(m); return m;
 }
+/* --- Leveransskick: betongplatta med golvbrunnar, golvvärmefördelare, bjälklag underifrån --- */
+floorPlane(0.2,0.2,13.3,7.3, matBetong, -0.012);   /* går in under väggarnas installationsskikt */
+function golvbrunn(x, z, y){
+  box(x-0.11, y, z-0.11, x+0.11, y+0.004, z+0.11, matSteel, false);   /* klämring */
+  box(x-0.075, y+0.001, z-0.075, x+0.075, y+0.0045, z+0.075, matDark, false);
+  for (var k=-3;k<=3;k++) box(x-0.07, y+0.0045, z+k*0.02-0.005, x+0.07, y+0.006, z+k*0.02+0.005, matSteel, false); /* galler */
+}
+golvbrunn(6.05, 5.95, -0.012);   /* tvättstuga */
+golvbrunn(8.1, 5.95, -0.012);    /* badrum (dusch) */
+golvbrunn(12.9, 1.9, -0.012);    /* kök, under diskbänken */
+/* Fördelarskåp för golvvärmen på hjärtväggen i tvättstugan, slingorna går ner i plattan */
+(function(){
+  box(5.55,0.30,4.20, 6.30,1.00,4.31, matWhite, false);
+  box(5.57,0.32,4.31, 6.28,0.98,4.315, new THREE.MeshStandardMaterial({color:0xeeeeea, roughness:.4}), false);
+  box(6.20,0.58,4.315, 6.23,0.72,4.33, matSteel, false);                 /* lås */
+  for (var k=0;k<7;k++){
+    var px = 5.64 + k*0.09;
+    cyl(px, -0.012, 4.265, 0.009, 0.315, (k%2 ? matWhite : matRorR), 8);   /* PEX-slingor */
+  }
+  box(5.6,0.62,4.24, 6.25,0.65,4.29, matSteel, false);                   /* fördelarrör (skymt i skåpet) */
+})();
+/* Bjälklaget underifrån: golvbjälkar 45×220 c/c 600, isolering, trapphål med växlar */
+(function(){
+  var yb = H + 0.06, yt = H + 0.28;
+  function bjalke(x, z1, z2){ box(x-0.0225, yb, z1, x+0.0225, yt, z2, matVirke, false); }
+  for (var x=0.6; x<13.0; x+=0.6){
+    if (Math.abs(x-10.2) < 0.1) continue;
+    if (x > 6.95 && x < 10.25){ bjalke(x, 0.34, 4.15); bjalke(x, 5.4, 7.16); }
+    else bjalke(x, 0.34, 7.16);
+  }
+  [7.0-0.0225, 10.2+0.0225].forEach(function(x){ bjalke(x-0.045, 0.34, 7.16); bjalke(x, 0.34, 7.16); }); /* dubbla vid trapphålet */
+  box(6.93, yb, 4.105, 10.27, yt, 4.15, matVirke, false);   /* växlar */
+  box(6.93, yb, 5.4, 10.27, yt, 5.445, matVirke, false);
+  box(0.3, H, 4.1, 10.15, yb, 4.2, matVirke, false);         /* hammarband på hjärtväggen */
+  [[0.2,0.2,13.3,4.15],[0.2,5.4,13.3,7.3],[0.2,4.15,7.0,5.4],[10.2,4.15,13.3,5.4]].forEach(function(r){
+    var c = floorPlane(r[0],r[1],r[2],r[3], matIsol, H + 0.1);
+    c.rotation.x = Math.PI/2;
+  });
+})();
+
+LAYER = ['golv'];
 floorPlane(0.3,0.3,13.2,7.2, matParquet, 0);
-floorPlane(7.6,5.45,9.6,7.2, matTileWC, 0.012);   /* wc/d */
 floorPlane(9.7,5.45,13.2,7.2, matTileEnt, 0.012); /* entré */
+floorPlane(3.7,5.45,4.9,7.2, matTileKl, 0.012);   /* förråd */
+LAYER = ['vatrum'];
+floorPlane(7.6,5.45,9.6,7.2, matTileWC, 0.012);   /* wc/d */
 floorPlane(5.0,4.2,7.0,7.2, matTileKl, 0.012);    /* tvättstuga, övre delen */
 floorPlane(7.0,5.45,7.5,7.2, matTileKl, 0.012);   /* tvättstuga, bredare nedre delen */
-floorPlane(3.7,5.45,4.9,7.2, matTileKl, 0.012);   /* förråd */
+golvbrunn(6.05, 5.95, 0.012);                     /* brunnens sats i klinkern */
 
 /* innertak med öppning över trapphuset */
+LAYER = ['tak'];
 [[0.3,0.3,13.2,4.15],[0.3,5.4,13.2,7.2],[0.3,4.15,7.0,5.4],[10.2,4.15,13.2,5.4]].forEach(function(r){
   var c = floorPlane(r[0],r[1],r[2],r[3], matCeil, H-0.005);
   c.rotation.x = Math.PI/2;
 });
 
 /* Väggkakel i badrummet (fritt vid dörren mot entrén) */
+LAYER = ['vatrum'];
 box(7.61,0,5.46, 7.64,2.0,7.19, matWallWC,false);
 box(9.56,0,5.46, 9.59,2.0,5.68, matWallWC,false);
 box(9.56,0,6.62, 9.59,2.0,7.19, matWallWC,false);
@@ -3642,8 +3938,19 @@ box(5.04,0,7.16, 5.34,2.0,7.19, matWallWC,false);
 box(6.26,0,7.16, 7.44,2.0,7.19, matWallWC,false);
 
 /* ---------- Trappa (gåbar upp till övervåningen) ---------- */
+LAYER = ['trappa'];
 var stair = {x0:7.15, x1:10.15, z0:4.25, z1:5.3, steps:15, depth:0.2, rise:2.8/15};
 (function(){
+  /* byggtrappa i virke – syns tills den riktiga trappan kryssas i */
+  withLayer(['!trappa'], function(){
+    for (var i=0;i<stair.steps;i++){
+      var xHi = stair.x1 - i*stair.depth, y = stair.rise*(i+1);
+      box(xHi-stair.depth-0.02, y-0.035, stair.z0+0.05, xHi, y, stair.z1-0.05, matVirke, false);
+    }
+    [stair.z0+0.03, stair.z1-0.03].forEach(function(z){
+      beam(stair.x1+0.05, 0.05, z, stair.x0-0.05, 2.8-0.08, z, 0.045, 0.195, matVirke);
+    });
+  });
   for (var i=0;i<stair.steps;i++){
     var xHi = stair.x1 - i*stair.depth;
     box(xHi-stair.depth, 0, stair.z0, xHi, stair.rise*(i+1), stair.z1, matFuru, false);
@@ -3654,11 +3961,13 @@ var stair = {x0:7.15, x1:10.15, z0:4.25, z1:5.3, steps:15, depth:0.2, rise:2.8/1
     r.position.set(8.65, 2.32, z); r.rotation.z = -0.755;
     r.castShadow = true; scene.add(r);
   });
-  /* bjälklagskant runt trapphålet */
-  box(7.0,2.5,4.15, 10.2,2.79,4.2, matWall, false);
-  box(7.0,2.5,5.35, 10.2,2.79,5.4, matWall, false);
-  box(10.15,2.5,4.2, 10.2,2.79,5.35, matWall, false);
-  box(7.0,2.5,4.2, 7.15,2.79,5.35, matWall, false);
+  /* bjälklagskant runt trapphålet (inklädnad = gips) */
+  withLayer(['tak'], function(){
+    box(7.0,2.5,4.15, 10.2,2.79,4.2, matWall, false);
+    box(7.0,2.5,5.35, 10.2,2.79,5.4, matWall, false);
+    box(10.15,2.5,4.2, 10.2,2.79,5.35, matWall, false);
+    box(7.0,2.5,4.2, 7.15,2.79,5.35, matWall, false);
+  });
   /* fururäcke längs trapphålets norra sida på övervåningen */
   box(7.12,3.7,4.17, 10.18,3.76,4.23, matFuru, false);
   for (var px=7.25; px<10.15; px+=0.42) cyl(px, 2.805, 4.2, 0.014, 0.9, matDark, 8);
@@ -3667,6 +3976,7 @@ var stair = {x0:7.15, x1:10.15, z0:4.25, z1:5.3, steps:15, depth:0.2, rise:2.8/1
 })();
 
 /* ---------- Kök i IKEA-stil (östra väggen + köksö) ---------- */
+LAYER = ['kok'];
 (function(){
   /* Marmorbänkskiva (0,8 m rapport) */
   function drawMarble(g, s){
@@ -3771,6 +4081,7 @@ var stair = {x0:7.15, x1:10.15, z0:4.25, z1:5.3, steps:15, depth:0.2, rise:2.8/1
 })();
 
 /* ---------- Vardagsrum ---------- */
+LAYER = ['mobler'];
 (function(){
   /* matta med bård */
   floorPlane(1.0,0.7,3.8,3.6, new THREE.MeshStandardMaterial({color:0xc4beae, roughness:1}), 0.008);
@@ -3851,6 +4162,7 @@ var stair = {x0:7.15, x1:10.15, z0:4.25, z1:5.3, steps:15, depth:0.2, rise:2.8/1
 })();
 
 /* ---------- Tvättstuga (TT 60 + TM 60 + tvättho 60 + VP 60 = 2,4 m) ---------- */
+LAYER = ['sanitet'];
 (function(){
   box(5.03,0,6.55, 5.63,0.85,7.15, matWhite, true);        /* TT 60 cm */
   box(5.66,0,6.55, 6.26,0.85,7.15, matWhite, true);        /* TM 60 cm */
@@ -3873,6 +4185,7 @@ var stair = {x0:7.15, x1:10.15, z0:4.25, z1:5.3, steps:15, depth:0.2, rise:2.8/1
   box(7.65,0.06,6.37, 8.53,2.0,6.4, matGlass, false);
   addCol(7.65,5.5,8.55,6.4);
   cyl(7.8,1.9,5.65,0.06,0.02,matSteel,12);                 /* takdusch */
+  golvbrunn(8.1, 5.95, 0.061);                               /* brunnssats i duschen */
   /* wc-stol */
   box(7.75,0,6.62, 8.17,0.75,6.78, matWhite, true);        /* cistern */
   box(7.79,0.2,6.78, 8.13,0.42,7.1, matWhite, false);      /* skål+sits */
@@ -3883,12 +4196,14 @@ var stair = {x0:7.15, x1:10.15, z0:4.25, z1:5.3, steps:15, depth:0.2, rise:2.8/1
 })();
 
 /* ---------- Entré ---------- */
+LAYER = ['mobler'];
 (function(){
   floorPlane(12.65,5.5,13.15,6.7, new THREE.MeshStandardMaterial({color:0x3d3f42, roughness:1}), 0.02); /* dörrmatta */
   box(9.72,0,6.7, 9.95,2.1,7.15, matCab, true);            /* el/media, söder om wc-dörren */
 })();
 
 /* ---------- Detaljer: dörrblad, gardiner, tavlor, växter ---------- */
+LAYER = ['mobler'];
 (function(){
   var matCurtain = new THREE.MeshStandardMaterial({color:0xe9e4d9, roughness:.95});
   /* öppna dörrblad med trycke */
@@ -3901,9 +4216,11 @@ var stair = {x0:7.15, x1:10.15, z0:4.25, z1:5.3, steps:15, depth:0.2, rise:2.8/1
     kn.rotation.x = Math.PI/2; kn.position.set(width-0.08,1.02,0); g.add(kn);
     scene.add(g);
   }
-  doorLeaf(3.59,4.40, 0.86, 3.6);    /* sovrum */
-  doorLeaf(5.01,4.40, 0.86, -0.42);  /* tvättstuga */
-  doorLeaf(9.71,5.75, 0.86, -0.44);  /* wc/d – utåtgående, ut i entrén */
+  withLayer(['iv_gips','snick'], function(){
+    doorLeaf(3.59,4.40, 0.86, 3.6);    /* sovrum */
+    doorLeaf(5.01,4.40, 0.86, -0.42);  /* tvättstuga */
+    doorLeaf(9.71,5.75, 0.86, -0.44);  /* wc/d – utåtgående, ut i entrén */
+  });
 
   /* gardiner med gardinstång */
   function curtains(x1,x2,zFace,dir){
@@ -4005,14 +4322,20 @@ var stair = {x0:7.15, x1:10.15, z0:4.25, z1:5.3, steps:15, depth:0.2, rise:2.8/1
     uv.needsUpdate = true;
     return m;
   }
+  LAYER = [];
+  [[0.2,0.2,13.3,4.2],[0.2,5.35,13.3,7.3],[0.2,4.2,7.15,5.35],[10.15,4.2,13.3,5.35]].forEach(function(r){
+    floor2Plane(r[0],r[1],r[2],r[3], matSpan, F2-0.008);          /* spånskiva (levereras) */
+  });
   [[0.3,0.3,13.2,4.2],[0.3,5.35,13.2,7.2],[0.3,4.2,7.15,5.35],[10.15,4.2,13.2,5.35]].forEach(function(r){
-    floor2Plane(r[0],r[1],r[2],r[3], matParquet, F2);
+    withLayer(['golv'], function(){ floor2Plane(r[0],r[1],r[2],r[3], matParquet, F2); });
     var u = floorPlane(r[0],r[1],r[2],r[3], matCeil, F2-0.012);   /* bjälklagets undersida */
     u.rotation.x = Math.PI/2;
   });
-  floorPlane(6.55,5.45,9.25,7.2, matTileWC, F2+0.012);        /* badrumsklinker */
-  var c2 = floorPlane(0.3,0.3,13.2,7.2, matCeil, T2-0.005);   /* innertak */
-  c2.rotation.x = Math.PI/2;
+  withLayer(['vatrum'], function(){ floorPlane(6.55,5.45,9.25,7.2, matTileWC, F2+0.012); }); /* badrumsklinker */
+  withLayer(['tak'], function(){
+    var c2 = floorPlane(0.3,0.3,13.2,7.2, matCeil, T2-0.005);   /* innertak */
+    c2.rotation.x = Math.PI/2;
+  });
 
   /* väggar enligt övervåningsritningen (fönsterbröstning 70 cm) */
   var walls2 = [
@@ -4057,11 +4380,13 @@ var stair = {x0:7.15, x1:10.15, z0:4.25, z1:5.3, steps:15, depth:0.2, rise:2.8/1
   walls2.forEach(buildWall);
 
   /* --- Bad: kakel, kommod, wc och badkar --- */
+  LAYER = ['vatrum'];
   box(6.56,F2,5.46, 6.59,F2+2.0,5.64, matWallWC,false);
   box(6.56,F2,6.56, 6.59,F2+2.0,7.19, matWallWC,false);
   box(9.21,F2,5.46, 9.24,F2+2.0,7.19, matWallWC,false);
   box(6.59,F2,5.46, 9.21,F2+2.0,5.49, matWallWC,false);
   box(6.59,F2,7.16, 9.21,F2+2.0,7.19, matWallWC,false);
+  LAYER = ['sanitet'];
   box(6.7,F2+0.25,5.5, 7.35,F2+0.85,5.95, matCab, true);       /* kommod */
   box(6.68,F2+0.85,5.48, 7.37,F2+0.95,5.97, matWhite, false);
   box(6.75,F2+1.15,5.49, 7.3,F2+1.85,5.51, matSteel, false);   /* spegel */
@@ -4073,6 +4398,7 @@ var stair = {x0:7.15, x1:10.15, z0:4.25, z1:5.3, steps:15, depth:0.2, rise:2.8/1
   cyl(8.8,F2+0.55,5.7, 0.015,0.25, matSteel, 10);
 
   /* --- Sovrum 2: walk-in closet (öppning närmast fönstret) + dubbelsäng --- */
+  LAYER = ['mobler'];
   box(0.35,F2+0.02,0.5, 0.72,F2+2.0,3.5, matWhite, true);        /* hyllsektion i closeten */
   var rl = new THREE.Mesh(new THREE.CylinderGeometry(0.014,0.014,1.7,8), matSteel);
   rl.rotation.x = Math.PI/2; rl.position.set(1.6, F2+1.78, 2.65); rl.castShadow = true; scene.add(rl);
@@ -4155,6 +4481,7 @@ var stair = {x0:7.15, x1:10.15, z0:4.25, z1:5.3, steps:15, depth:0.2, rise:2.8/1
   box(12.4,F2,4.4, 13.15,F2+2.2,5.0, matWhite, true);          /* garderob G */
 
   /* --- Taklampor och kontaktskuggor --- */
+  LAYER = ['tak','mobler'];
   [[2.7,2.0],[9.9,2.2],[2.2,5.5],[7.9,6.3],[11.4,6.0]].forEach(function(p){
     var pl = new THREE.PointLight(0xfff0dc, 0.42, 7, 2);
     pl.position.set(p[0], T2-0.25, p[1]); scene.add(pl);
@@ -4162,6 +4489,7 @@ var stair = {x0:7.15, x1:10.15, z0:4.25, z1:5.3, steps:15, depth:0.2, rise:2.8/1
     var dd = new THREE.Mesh(new THREE.CircleGeometry(0.07,14), new THREE.MeshBasicMaterial({color:0xfff3d8}));
     dd.rotation.x = Math.PI/2; dd.position.set(p[0], T2-0.19, p[1]); scene.add(dd);
   });
+  LAYER = ['mobler'];
   contactShadow(2.5,1.5, 4.35,3.75, F2+0.006, 0.3);     /* säng sovrum 2 */
   contactShadow(8.8,2.45, 11.3,3.45, F2+0.0105, 0.32);  /* soffa allrum */
   contactShadow(8.2,1.4, 11.9,2.45, F2+0.0105, 0.22);   /* fåtöljer + bord */
@@ -4171,6 +4499,7 @@ var stair = {x0:7.15, x1:10.15, z0:4.25, z1:5.3, steps:15, depth:0.2, rise:2.8/1
 })();
 
 /* ---------- Funkis-inredning: gardiner uppe, mattor, fönsterväxter, hall m.m. ---------- */
+LAYER = ['mobler'];
 (function(){
   var F2 = 2.8;
   var matCurtain = new THREE.MeshStandardMaterial({color:0xe9e4d9, roughness:.95});
@@ -4387,7 +4716,81 @@ var stair = {x0:7.15, x1:10.15, z0:4.25, z1:5.3, steps:15, depth:0.2, rise:2.8/1
   windowGlow(11.05,1.15, 1.3,2.4, 0.34);
 })();
 
+/* ---------- Installationer: el- och VVS-dragning (byggsteg) ---------- */
+LAYER = ['install'];
+(function(){
+  var F2 = 2.8;
+  /* tappvatten (rör-i-rör, rött varmt / blått kallt) upp ur golvet vid varje tappställe */
+  /* rören göms när porslin/kök monterats; kökets stosar följer köket */
+  var vvs = ['install','!sanitet'];
+  function tapp(x, y0, z, h){
+    withLayer(vvs, function(){
+      cyl(x-0.035, y0, z, 0.011, h, matRorR, 8);
+      cyl(x+0.035, y0, z, 0.011, h, matRorB, 8);
+    });
+  }
+  /* avloppsstos (grå PP) */
+  function avlopp(x, y0, z, r, h){ withLayer(vvs, function(){ cyl(x, y0, z, r, h, matRorG, 14); }); }
+  /* eldosa: blå dosa tills väggen kläs, sedan vitt uttag/strömbrytare på den färdiga ytan.
+     face = färdig väggyta, dir = riktning ut i rummet, cover = steget som klär väggen */
+  function dosa(axis, at, a, y, face, dir, cover){
+    withLayer(['install','!'+cover], function(){
+      if (axis === 'x') box(a-0.035, y-0.035, at-0.02, a+0.035, y+0.035, at+0.02, matElDosa, false);
+      else              box(at-0.02, y-0.035, a-0.035, at+0.02, y+0.035, a+0.035, matElDosa, false);
+    });
+    withLayer(['install', cover], function(){
+      var f1 = face, f2 = face + dir*0.012;
+      if (axis === 'x') box(a-0.042, y-0.042, f1, a+0.042, y+0.042, f2, matWhite, false);
+      else              box(f1, y-0.042, a-0.042, f2, y+0.042, a+0.042, matWhite, false);
+    });
+  }
+  var pi = 0.3 - LIN + 0.045 + 0.02;   /* dosans mitt: framkant regel (norr/väst) */
+  var dN = function(a,y){ dosa('x', pi, a, y, 0.3, 1, 'gips_yv'); },
+      dS = function(a,y){ dosa('x', 7.5-pi, a, y, 7.2, -1, 'gips_yv'); },
+      dW = function(a,y){ dosa('z', pi, a, y, 0.3, 1, 'gips_yv'); },
+      dE = function(a,y){ dosa('z', 13.5-pi, a, y, 13.2, -1, 'gips_yv'); };
+  /* bottenvåning (i betongplattan) */
+  vvs = ['install','!kok'];
+  tapp(12.95, -0.012, 1.75, 0.45); avlopp(12.95, -0.012, 2.05, 0.028, 0.35);  /* diskbänk */
+  vvs = ['install','!sanitet'];
+  tapp(6.6, -0.012, 7.05, 0.8);    avlopp(6.45, -0.012, 7.05, 0.028, 0.45);    /* tvättho */
+  tapp(5.96, -0.012, 7.05, 0.8);   avlopp(5.8, -0.012, 7.05, 0.028, 0.45);     /* tvättmaskin */
+  tapp(7.2, -0.012, 7.05, 1.9);                                                /* värmepump */
+  avlopp(7.96, -0.012, 6.9, 0.055, 0.12); tapp(7.96, -0.012, 7.1, 0.3);        /* wc */
+  tapp(9.12, -0.012, 7.08, 0.55);  avlopp(9.0, -0.012, 7.05, 0.028, 0.4);      /* tvättställ */
+  tapp(7.72, -0.012, 5.9, 1.1);                                                /* dusch */
+  /* övervåning: stammar upp genom bjälklaget i badrummet */
+  tapp(6.7, F2-0.01, 7.1, 0.45);   avlopp(7.0, F2-0.01, 7.1, 0.028, 0.35);     /* ovanför kommoden, bad */
+  avlopp(7.91, F2-0.01, 5.6, 0.055, 0.12); tapp(7.75, F2-0.01, 5.55, 0.3);     /* wc */
+  tapp(8.8, F2-0.01, 5.62, 0.55);  avlopp(9.05, F2-0.01, 6.3, 0.028, 0.1);     /* badkar */
+  /* eldosor på ytterväggarnas reglar och hjärtväggen (uttag 0,2 m, strömbrytare 1,1 m) */
+  [[1.0,0.2],[4.2,1.1],[5.0,0.2],[9.2,0.2],[12.0,1.2]].forEach(function(p){ dN(p[0], p[1]); });
+  [[2.0,0.2],[3.0,0.2],[7.5,0.2],[12.3,1.1],[11.2,0.2]].forEach(function(p){ dS(p[0], p[1]); });
+  [[1.0,0.2],[2.8,0.2],[5.0,0.2],[6.6,0.2]].forEach(function(p){ dW(p[0], p[1]); });
+  [[2.9,1.1],[5.3,1.1],[4.8,0.2]].forEach(function(p){ dE(p[0], p[1]); });
+  /* hjärtväggen står redan klädd – dosorna blir uttag när snickerierna görs */
+  [[1.0,0.2],[3.0,0.2],[6.6,0.2],[8.6,0.2]].forEach(function(p){
+    dosa('x', 4.09, p[0], p[1], 4.1, -1, 'snick'); dosa('x', 4.21, p[0], p[1], 4.2, 1, 'snick'); });
+  [[3.6,1.1],[5.1,1.1]].forEach(function(p){ dosa('x', 4.21, p[0], p[1], 4.2, 1, 'snick'); });
+  /* övervåning */
+  [[1.5,F2+0.2],[4.5,F2+0.2],[8.0,F2+0.2],[10.2,F2+0.2],[12.5,F2+0.2]].forEach(function(p){ dN(p[0], p[1]); });
+  [[2.0,F2+0.2],[4.2,F2+0.2],[11.0,F2+0.2],[12.8,F2+0.2]].forEach(function(p){ dS(p[0], p[1]); });
+  [[2.0,F2+0.2],[5.5,F2+0.2]].forEach(function(p){ dW(p[0], p[1]); dE(p[0], p[1]); });
+  /* takdosor för belysning, kablarna hänger ner tills innertaket är på plats */
+  withLayer(['install','!tak'], function(){
+    [[2.2,2.2],[7.9,2.0],[11.0,2.2],[1.9,5.7],[6.0,5.7],[8.15,6.3],[11.2,6.2],[4.3,4.8]].forEach(function(p){
+      box(p[0]-0.04, H+0.02, p[1]-0.04, p[0]+0.04, H+0.06, p[1]+0.04, matElDosa, false);
+      cyl(p[0], H-0.14, p[1], 0.006, 0.2, matDark, 6);
+    });
+  });
+  /* elcentral i entrén – hamnar sedan bakom el/media-skåpet */
+  withLayer(['install','!mobler'], function(){
+    box(9.73, 1.2, 7.5-pi-0.1, 10.3, 1.95, 7.5-pi, new THREE.MeshStandardMaterial({color:0xe9e9e6, roughness:.45}), false);
+  });
+})();
+
 /* ---------- Belysning ---------- */
+LAYER = [];
 scene.add(new THREE.AmbientLight(0xffffff, 0.10));
 var hemi = new THREE.HemisphereLight(0xbdd7ee, 0xb0aea8, 0.26); scene.add(hemi);   /* neutral markfärg (ej gröngul) */
 var sun = new THREE.DirectionalLight(0xffe9c4, 1.65);
@@ -4412,9 +4815,11 @@ function lamp(x,z,intensity,dist){
         new THREE.MeshBasicMaterial({color:0xfff3d8}));
   d.rotation.x = Math.PI/2; d.position.set(x, H-0.19, z); scene.add(d);
 }
+LAYER = ['tak','mobler'];   /* armaturerna; ljuskällorna lyser i alla skeden */
 lamp(2.2,2.2, 0.34, 8);  lamp(7.9,2.0, 0.34, 8);  lamp(11.0,2.2, 0.30, 7);
 lamp(1.9,5.7, 0.28, 6);  lamp(6.0,5.7, 0.24, 5);   lamp(8.15,6.3, 0.24, 5);
 lamp(11.2,6.2, 0.30, 6);  lamp(4.3,4.8, 0.22, 5);
+LAYER = [];
 
 /* ---------- Himmel, miljöreflektioner & utomhus ---------- */
 (function(){
@@ -4495,7 +4900,11 @@ var TERR={"x0":-20,"z0":-44,"step":2,"ncol":27,"nrow":38,"ffl":54.55,"grid":[[49
   var pos=gg.attributes.position;
   for (var i=0;i<pos.count;i++){
     var wx=pos.getX(i)+(X0+X1)/2, wz=pos.getZ(i)+(Z0+Z1)/2;
-    pos.setY(i, padded(wx,wz));
+    var gy = padded(wx,wz);
+    /* marken får aldrig sticka upp genom bottenplattan (syns i leveransskicket) */
+    var lx = pos.getX(i), lz = pos.getZ(i);
+    if (lx > -1 && lx < 14.5 && lz > -1 && lz < 8.5) gy = Math.min(gy, -0.05);
+    pos.setY(i, gy);
   }
   gg.computeVertexNormals();
 
@@ -4623,7 +5032,57 @@ box(-0.02,H,-0.02, 13.52,2.79,0.34, matFasad, false);
 box(-0.02,H,7.16, 13.52,2.79,7.52, matFasad, false);
 box(-0.02,H,0.34, 0.34,2.79,7.16, matFasad, false);
 box(13.16,H,0.34, 13.52,2.79,7.16, matFasad, false);
-box(-0.02,5.3,-0.02, 13.52,5.62,7.52, matFasad, false);
+box(-0.02,5.3,-0.02, 13.52,5.62,0.34, matFasad, false);     /* hammarband – vinden är öppen */
+box(-0.02,5.3,7.16, 13.52,5.62,7.52, matFasad, false);
+box(-0.02,5.3,0.34, 0.34,5.62,7.16, matFasad, false);
+box(13.16,5.3,0.34, 13.52,5.62,7.16, matFasad, false);
+/* Vinden: takstolar c/c 1,2 m, råspont under pannorna, vindskydd på gavlarna */
+(function(){
+  var T2 = 5.3, t28 = Math.tan(28*Math.PI/180), c28 = Math.cos(28*Math.PI/180);
+  function yU(z){ var d = Math.min(z, 7.5 - z); return 5.471 + d*t28; }   /* takets undersida */
+  var dTop = 0.085/c28 + 0.02;          /* överramens centrumlinje under råsponten */
+  function yT(z){ return yU(z) - dTop; }
+  var xs = [];
+  for (var x=0.4; x<13.2; x+=1.2) xs.push(x);
+  xs.push(13.1);
+  xs.forEach(function(x){
+    var yb = T2 + 0.085;
+    /* inom väggliv – takfoten är färdig utvändigt, inga synliga ändar under takfoten */
+    beam(x, yb, 0.02, x, yb, 7.48, 0.045, 0.17, matVirke);                 /* underram */
+    beam(x, yT(0.02), 0.02, x, yT(3.75), 3.75, 0.045, 0.17, matVirke);     /* överramar */
+    beam(x, yT(7.48), 7.48, x, yT(3.75), 3.75, 0.045, 0.17, matVirke);
+    /* diagonaler (W-takstol) */
+    beam(x, yb, 2.5, x, yT(1.875), 1.875, 0.045, 0.12, matVirke);
+    beam(x, yb, 2.5, x, yT(3.75)-0.05, 3.7, 0.045, 0.12, matVirke);
+    beam(x, yb, 5.0, x, yT(3.75)-0.05, 3.8, 0.045, 0.12, matVirke);
+    beam(x, yb, 5.0, x, yT(5.625), 5.625, 0.045, 0.12, matVirke);
+    /* spikplåtar i knutpunkterna */
+    [[2.5,yb],[5.0,yb],[3.75,yT(3.75)]].forEach(function(p){
+      box(x-0.024, p[1]-0.08, p[0]-0.1, x+0.024, p[1]+0.08, p[0]+0.1, matSteel, false);
+    });
+  });
+  /* råspont på takets undersida */
+  var L = 3.75/c28 + 0.36/c28;
+  [[1,-1],[-1,1]].forEach(function(sd){
+    var pm = new THREE.Mesh(new THREE.PlaneGeometry(14.1, L), matRaspont);
+    var zc = sd[0] > 0 ? 3.75 - (3.75+0.36)/2 : 3.75 + (3.75+0.36)/2;
+    pm.position.set(6.75, yU(zc) - 0.004, zc);
+    pm.rotation.x = Math.PI/2 + sd[1]*28*Math.PI/180;
+    pm.receiveShadow = true; scene.add(pm);
+  });
+  /* vindskydd på gavlarnas insida */
+  [0.34, 13.16].forEach(function(gx){
+    var zA = 0.34, zB = 7.16;
+    var v = new Float32Array([
+      gx,5.3,zA, gx,yU(zA),zA, gx,yU(3.75),3.75,
+      gx,5.3,zA, gx,yU(3.75),3.75, gx,5.3,zB,
+      gx,5.3,zB, gx,yU(3.75),3.75, gx,yU(zB),zB ]);
+    var g2 = new THREE.BufferGeometry();
+    g2.setAttribute('position', new THREE.BufferAttribute(v,3));
+    g2.computeVertexNormals();
+    var mm = new THREE.Mesh(g2, matVindskydd); mm.receiveShadow = true; scene.add(mm);
+  });
+})();
 (function(){
   var EAVE = 5.5, RIDGE_U = 7.46, A28 = 28*Math.PI/180;
   /* stående panel per fasad och våning, med hål vid fönster och dörrar */
@@ -4729,6 +5188,65 @@ function updateRoom(x,z){
   if (name !== lastRoom){ lastRoom = name; roomEl.textContent = name; roomEl.style.display = name?'block':'none'; }
 }
 
+/* ---------- Meny: byggsteg ---------- */
+var STEPS = [
+  {k:'iv_regel', n:'Innerväggar – regelstomme', d:'Syll, reglar c/c 600 och hammarband'},
+  {k:'install',  n:'El- och VVS-dragning', d:'Dosor, rör-i-rör, avloppsstosar, elcentral'},
+  {k:'tak',      n:'Innertak', d:'Glespanel + gips på båda planen, inklädnad av trapphålet'},
+  {k:'gips_yv',  n:'Gips på ytterväggarna', d:'Skivor på installationsskiktet'},
+  {k:'iv_gips',  n:'Innerväggar – gips', d:'Skivor, spackel och målning'},
+  {k:'vatrum',   n:'Våtrum – tätskikt, klinker & kakel', d:'Badrum, WC/dusch och tvättstuga'},
+  {k:'golv',     n:'Golv', d:'Furugolv och klinker i entré/förråd'},
+  {k:'trappa',   n:'Trappa & räcke', d:'Ersätter byggtrappan'},
+  {k:'snick',    n:'Snickerier', d:'Smygar, foder, golvlister, fönsterbänkar, innerdörrar'},
+  {k:'kok',      n:'Kök', d:'Skåp, bänkar, vitvaror och köksö'},
+  {k:'sanitet',  n:'Porslin & maskiner', d:'WC, dusch, badkar, tvättmaskiner, värmepump'},
+  {k:'mobler',   n:'Möbler & inredning', d:'Möbler, mattor, gardiner, armaturer, växter'}
+];
+function applyLayers(){
+  scene.children.forEach(function(o){ if (o.userData.layers) o.visible = layersOn(o.userData.layers); });
+  STEPS.forEach(function(st){
+    st.cb.checked = !!LAYER_ON[st.k];
+    st.el.className = LAYER_ON[st.k] ? 'on' : '';
+  });
+  try { localStorage.setItem('villaSteg', JSON.stringify(LAYER_ON)); } catch(e){}
+}
+(function(){
+  var list = document.getElementById('stepList');
+  STEPS.forEach(function(st, i){
+    var lb = document.createElement('label');
+    lb.innerHTML = '<input type="checkbox"><span class="n">'+(i+1)+'</span><span>'+st.n+'<small>'+st.d+'</small></span>';
+    st.el = lb; st.cb = lb.querySelector('input');
+    st.cb.addEventListener('change', function(){ LAYER_ON[st.k] = st.cb.checked; applyLayers(); });
+    list.appendChild(lb);
+  });
+  function setUpTo(n){ STEPS.forEach(function(st, i){ LAYER_ON[st.k] = i < n; }); applyLayers(); }
+  function nextStep(){ for (var i=0;i<STEPS.length;i++) if (!LAYER_ON[STEPS[i].k]){ LAYER_ON[STEPS[i].k] = true; break; } applyLayers(); }
+  function prevStep(){ for (var i=STEPS.length-1;i>=0;i--) if (LAYER_ON[STEPS[i].k]){ LAYER_ON[STEPS[i].k] = false; break; } applyLayers(); }
+  document.getElementById('bNone').onclick = function(){ setUpTo(0); };
+  document.getElementById('bAll').onclick  = function(){ setUpTo(STEPS.length); };
+  document.getElementById('bNext').onclick = nextStep;
+  document.getElementById('bPrev').onclick = prevStep;
+  var box = document.getElementById('steps'), tg = document.getElementById('stepsToggle');
+  function toggleMenu(){ box.classList.toggle('min'); tg.textContent = box.classList.contains('min') ? 'visa ▼' : 'dölj ▲'; }
+  document.getElementById('stepsHead').onclick = toggleMenu;
+  document.getElementById('stepsKeys').textContent = IS_TOUCH ? '' :
+    'Tangenter: 1–9 växlar steg · + / − nästa/föregående steg · M dölj meny · Esc frigör musen för att klicka';
+  if (IS_TOUCH && innerWidth < 600) toggleMenu();
+  addEventListener('keydown', function(e){
+    if (e.repeat) return;
+    var d = e.key >= '1' && e.key <= '9' ? +e.key : 0;
+    if (d && d <= STEPS.length){ LAYER_ON[STEPS[d-1].k] = !LAYER_ON[STEPS[d-1].k]; applyLayers(); }
+    else if (e.key === '+' || e.code === 'NumpadAdd' || e.code === 'Equal') nextStep();
+    else if (e.key === '-' || e.code === 'NumpadSubtract' || e.code === 'Minus') prevStep();
+    else if (e.code === 'KeyM') toggleMenu();
+  });
+  /* senaste valet ligger kvar; första gången visas leveransskicket */
+  try { var sv = JSON.parse(localStorage.getItem('villaSteg') || 'null'); if (sv) STEPS.forEach(function(st){ LAYER_ON[st.k] = !!sv[st.k]; }); } catch(e){}
+  if (/[?&]allt=1\b/.test(location.search)) STEPS.forEach(function(st){ LAYER_ON[st.k] = true; });
+  applyLayers();
+})();
+
 /* ---------- Spelare & kontroller ---------- */
 /* startar 4 m utanför entrén, blickande in mot dörren (yaw π/2 = -x) */
 var player = {x:17.5, z:6.05, yaw:Math.PI/2, pitch:0, r:0.26, eye:1.6, h:0};
@@ -4760,9 +5278,11 @@ addEventListener('keyup',   function(e){ keys[e.code] = false; });
   var joy = document.getElementById('joy'), knob = document.getElementById('knob');
   var joyId = null, lookId = null, lookX = 0, lookY = 0;
   var jr = null;
+  var menu = document.getElementById('steps');
   addEventListener('touchstart', function(e){
     for (var i=0;i<e.changedTouches.length;i++){
       var t = e.changedTouches[i];
+      if (menu.contains(t.target)) continue;
       if (t.clientX < innerWidth*0.42 && joyId===null && started){
         joyId = t.identifier; jr = joy.getBoundingClientRect();
       } else if (lookId===null){
@@ -4771,6 +5291,7 @@ addEventListener('keyup',   function(e){ keys[e.code] = false; });
     }
   }, {passive:false});
   addEventListener('touchmove', function(e){
+    if (menu.contains(e.target)) return;   /* låt menyn scrolla */
     e.preventDefault();
     for (var i=0;i<e.changedTouches.length;i++){
       var t = e.changedTouches[i];
@@ -4816,6 +5337,7 @@ function blocked(px, pz){
   for (var i=0;i<colliders.length;i++){
     var c = colliders[i];
     if (head <= c.y0 || feet >= c.y1) continue;
+    if (c.layers && !layersOn(c.layers)) continue;   /* ej byggt ännu */
     var nx = Math.max(c.minX, Math.min(px, c.maxX));
     var nz = Math.max(c.minZ, Math.min(pz, c.maxZ));
     var dx = px-nx, dz = pz-nz;
