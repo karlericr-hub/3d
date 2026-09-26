@@ -2941,7 +2941,10 @@ document.getElementById('hint').innerHTML = IS_TOUCH ?
 var H = 2.5;                       // innertakhöjd
 var canvas = document.getElementById('c');
 var renderer = new THREE.WebGLRenderer({canvas:canvas, antialias:true});
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+/* Skärpa före stämning: efterbehandling (SSAO/bloom/SMAA) och fejkad fönsterglöd
+ * gjorde bilden mjuk/disig. Av som standard, slås på med ?fx=1 i adressen. */
+var FX = /[?&]fx=1\b/.test(location.search);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 3));   /* full upplösning på skarpa skärmar */
 renderer.setSize(innerWidth, innerHeight);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -3386,6 +3389,7 @@ function contactShadow(x1,z1,x2,z2,y,op){
 }
 /* Ljusglöd innanför fönster – fejkad bloom i motljus */
 function windowGlow(cx,cy,w2,h2,z){
+  if (!FX) return;
   var cv=document.createElement('canvas'); cv.width=cv.height=128;
   var g=cv.getContext('2d');
   var grd=g.createRadialGradient(64,64,10,64,64,64);
@@ -4829,7 +4833,7 @@ function blocked(px, pz){
  * SSAOPass renderar scenen själv -> ingen separat RenderPass behövs.
  * Touch-enheter behåller den enkla (billigare) render-vägen oförändrad.      */
 var composer = null;
-if (!IS_TOUCH && THREE.EffectComposer && THREE.SSAOPass && THREE.UnrealBloomPass && THREE.SMAAPass){
+if (FX && !IS_TOUCH && THREE.EffectComposer && THREE.SSAOPass && THREE.UnrealBloomPass && THREE.SMAAPass){
   try {
     var _pr = renderer.getPixelRatio();
     composer = new THREE.EffectComposer(renderer,
