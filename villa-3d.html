@@ -4897,15 +4897,12 @@ var TERR={"x0":-20,"z0":-44,"step":2,"ncol":27,"nrow":38,"ffl":54.55,"grid":[[49
   var X0=T.x0, X1=T.x0+(T.ncol-1)*T.step, Z0=T.z0, Z1=T.z0+(T.nrow-1)*T.step;
   var nx=(X1-X0)+1, nz=(Z1-Z0)+1;
   var gg=new THREE.PlaneGeometry(X1-X0,Z1-Z0,nx-1,nz-1); gg.rotateX(-Math.PI/2);
+  /* PlaneGeometry är centrerad i origo – flytta den till höjddatats världsrektangel
+     så att varje vertex får höjden för sin egen position */
+  gg.translate((X0+X1)/2, 0, (Z0+Z1)/2);
   var pos=gg.attributes.position;
-  for (var i=0;i<pos.count;i++){
-    var wx=pos.getX(i)+(X0+X1)/2, wz=pos.getZ(i)+(Z0+Z1)/2;
-    var gy = padded(wx,wz);
-    /* marken får aldrig sticka upp genom bottenplattan (syns i leveransskicket) */
-    var lx = pos.getX(i), lz = pos.getZ(i);
-    if (lx > -1 && lx < 14.5 && lz > -1 && lz < 8.5) gy = Math.min(gy, -0.05);
-    pos.setY(i, gy);
-  }
+  for (var i=0;i<pos.count;i++) pos.setY(i, padded(pos.getX(i), pos.getZ(i)));
+  window._groundPad=padded;   /* markytan som den ritas (för att gå utomhus) */
   gg.computeVertexNormals();
 
   /* ---- Satellit/ortofoto på en cirkel runt huset + 360-foto wrappat utanför ----
@@ -5330,6 +5327,7 @@ function floorH(x, z, cur){
   if (x > 13.45 && x < 14.08 && z > 5.25 && z < 6.95) return -0.02;  /* entré: övre steget/avsats */
   if (x > 13.45 && x < 14.68 && z > 5.15 && z < 7.05) return -0.15;  /* entré: nedre steget */
   /* utomhus: följ terrängen om vi är utanför husets fotavtryck */
+  if ((x < -0.05 || x > 13.55 || z < -0.05 || z > 7.55) && window._groundPad) return window._groundPad(x, z);
   return 0;
 }
 function blocked(px, pz){
