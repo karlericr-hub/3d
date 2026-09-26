@@ -84,7 +84,8 @@
         <li>Fördelarskåp för golvvärme i tvättstugan</li>
         <li>Mellanbjälklag med isolering och spånskivor</li>
         <li>Öppen vind med takstolar</li>
-        <li>Hjärtväggen på nedervåningen</li>
+        <li>Hjärtväggen på nedervåningen som regelstomme (utan OSB/gips)</li>
+        <li>Öppet trapphål – ingen trappa</li>
       </ul>
     </div>
     <div id="stepList"></div>
@@ -3014,7 +3015,7 @@ camera.rotation.order = 'YXZ';
  * Allt som läggs i scenen märks med de byggsteg som gäller just då (LAYER).
  * Tom lista = leveransskick, syns alltid. Ett objekt syns när alla dess steg
  * är ikryssade; '!steg' betyder "syns bara när steget INTE är ikryssat"
- * (t.ex. byggtrappan som ersätts av den riktiga trappan). Ljuskällor märks
+ * (t.ex. uttag som ersätter blå eldosor). Ljuskällor märks
  * inte – belysningen är densamma i alla skeden. Kolliderare märks likadant så
  * man kan gå där väggar ännu inte finns. */
 var LAYER = [];
@@ -3590,7 +3591,7 @@ function windowGlow(cx,cy,w2,h2,z){
 function buildWall(w){
   /* byggsteg: ytterväggar och hjärtväggen levereras, övriga innerväggar byggs.
      Fasadpanelen (w.mat satt) följer det steg som gäller när den byggs. */
-  var wl = (w.fmat || w.hjarta || w.mat) ? LAYER : ['iv_gips'];
+  var wl = (w.fmat || w.mat) ? LAYER : ['iv_gips'];   /* även hjärtväggens skivor */
   var Y0 = w.y0 || 0, Y1 = w.y1 || H;
   var ops = (w.openings||[]).slice().sort(function(a,b){return a.from-b.from;});
   var segs = [], cur = w.from;
@@ -3603,7 +3604,7 @@ function buildWall(w){
   if (cur < w.to) segs.push({a:cur, b:w.to, y0:Y0, y1:Y1, col:true});
   withLayer(wl, function(){ segs.forEach(function(s){ wallBox(w, s.a, s.b, s.y0, s.y1, s.col); }); });
   /* golvlist längs golvnära väggsegment */
-  var sl = w.fmat ? ['gips_yv','snick'] : (w.hjarta ? ['snick'] : ['iv_gips','snick']);
+  var sl = w.fmat ? ['gips_yv','snick'] : ['iv_gips','snick'];
   withLayer(sl, function(){ segs.forEach(function(s){
     if (s.y0 === Y0 && s.b - s.a > 0.05 && w.skirt !== 'none'){
       var lt = 0.013, lh = 0.07, sk = w.skirt || 'both';
@@ -3618,7 +3619,8 @@ function buildWall(w){
     }
   }); });
   if (w.fmat) battens(w, ops, Y0, Y1);
-  else if (!w.mat && !w.hjarta) withLayer(['iv_regel'], function(){ studs(w, ops, Y0, Y1); });
+  /* hjärtväggens regelstomme levereras, övriga innerväggars reglar är ett byggsteg */
+  else if (!w.mat) withLayer(w.hjarta ? LAYER : ['iv_regel'], function(){ studs(w, ops, Y0, Y1); });
   if (!w.noDecor) withLayer(w.fmat ? LAYER : sl, function(){ ops.forEach(function(o){ decorate(w, o); }); });
 }
 /* box i väggens koordinater: a = längdled, c = tjockleksled */
@@ -3651,20 +3653,22 @@ function battens(w, ops, Y0, Y1){
 /* Regelstomme för innervägg: syll, hammarband, reglar c/c 600, dubbla vid öppningar + överliggare */
 function studs(w, ops, Y0, Y1){
   var sw = w.th - 0.03, c1 = w.at - sw/2, c2 = w.at + sw/2, R = 0.045;
-  var cur = w.from;
+  /* stommen dras in 2 mm i ändarna så den inte z-fightar med skivornas ändytor */
+  var A0 = w.from + 0.002, A1 = w.to - 0.002;
+  var cur = A0;
   ops.forEach(function(o){
     if (o.b <= Y0){ if (o.from > cur) wbox(w, cur, Y0, c1, o.from, Y0+R, c2, matVirke); cur = o.to; }
   });
-  if (w.to > cur) wbox(w, cur, Y0, c1, w.to, Y0+R, c2, matVirke);
-  wbox(w, w.from, Y1-R, c1, w.to, Y1, c2, matVirke);
-  var pos = [w.from, w.to - R];
+  if (A1 > cur) wbox(w, cur, Y0, c1, A1, Y0+R, c2, matVirke);
+  wbox(w, A0, Y1-R, c1, A1, Y1, c2, matVirke);
+  var pos = [A0, A1 - R];
   for (var a = w.from + 0.6; a < w.to - 0.1; a += 0.6) pos.push(a - R/2);
   ops.forEach(function(o){ pos.push(o.from - R, o.from - 2*R, o.to, o.to + R); });
   pos.sort(function(p,q){ return p-q; });
   var last = -99;
   pos.forEach(function(a){
     var inOp = ops.some(function(o){ return a + R > o.from && a < o.to; });
-    if (inOp || a < w.from - 0.001 || a + R > w.to + 0.001 || a < last + R - 0.001) return;
+    if (inOp || a < A0 - 0.001 || a + R > A1 + 0.001 || a < last + R - 0.001) return;
     wbox(w, a, Y0+R, c1, a+R, Y1-R, c2, matVirke); last = a;
   });
   ops.forEach(function(o){
@@ -3875,7 +3879,7 @@ golvbrunn(8.1, 5.95, -0.012);    /* badrum (dusch) */
 golvbrunn(12.9, 1.9, -0.012);    /* kök, under diskbänken */
 /* Fördelarskåp för golvvärmen på hjärtväggen i tvättstugan, slingorna går ner i plattan */
 (function(){
-  box(5.55,0.30,4.20, 6.30,1.00,4.31, matWhite, false);
+  box(5.55,0.30,4.185, 6.30,1.00,4.31, matWhite, false);   /* mot hjärtväggens reglar */
   box(5.57,0.32,4.31, 6.28,0.98,4.315, new THREE.MeshStandardMaterial({color:0xeeeeea, roughness:.4}), false);
   box(6.20,0.58,4.315, 6.23,0.72,4.33, matSteel, false);                 /* lås */
   for (var k=0;k<7;k++){
@@ -3941,16 +3945,8 @@ box(6.26,0,7.16, 7.44,2.0,7.19, matWallWC,false);
 LAYER = ['trappa'];
 var stair = {x0:7.15, x1:10.15, z0:4.25, z1:5.3, steps:15, depth:0.2, rise:2.8/15};
 (function(){
-  /* byggtrappa i virke – syns tills den riktiga trappan kryssas i */
-  withLayer(['!trappa'], function(){
-    for (var i=0;i<stair.steps;i++){
-      var xHi = stair.x1 - i*stair.depth, y = stair.rise*(i+1);
-      box(xHi-stair.depth-0.02, y-0.035, stair.z0+0.05, xHi, y, stair.z1-0.05, matVirke, false);
-    }
-    [stair.z0+0.03, stair.z1-0.03].forEach(function(z){
-      beam(stair.x1+0.05, 0.05, z, stair.x0-0.05, 2.8-0.08, z, 0.045, 0.195, matVirke);
-    });
-  });
+  /* trappan ingår inte i leveransen – trapphålet står öppet tills steget kryssas i.
+     Man kan ändå gå upp (osynlig trappa) för att titta på övervåningen. */
   for (var i=0;i<stair.steps;i++){
     var xHi = stair.x1 - i*stair.depth;
     box(xHi-stair.depth, 0, stair.z0, xHi, stair.rise*(i+1), stair.z1, matFuru, false);
@@ -4768,10 +4764,10 @@ LAYER = ['install'];
   [[2.0,0.2],[3.0,0.2],[7.5,0.2],[12.3,1.1],[11.2,0.2]].forEach(function(p){ dS(p[0], p[1]); });
   [[1.0,0.2],[2.8,0.2],[5.0,0.2],[6.6,0.2]].forEach(function(p){ dW(p[0], p[1]); });
   [[2.9,1.1],[5.3,1.1],[4.8,0.2]].forEach(function(p){ dE(p[0], p[1]); });
-  /* hjärtväggen står redan klädd – dosorna blir uttag när snickerierna görs */
-  [[1.0,0.2],[3.0,0.2],[6.6,0.2],[8.6,0.2]].forEach(function(p){
-    dosa('x', 4.09, p[0], p[1], 4.1, -1, 'snick'); dosa('x', 4.21, p[0], p[1], 4.2, 1, 'snick'); });
-  [[3.6,1.1],[5.1,1.1]].forEach(function(p){ dosa('x', 4.21, p[0], p[1], 4.2, 1, 'snick'); });
+  /* hjärtväggen: dosorna sitter på reglarnas sidor och blir uttag när väggen kläs */
+  [[0.96,0.2],[2.76,0.2],[6.36,0.2],[8.76,0.2]].forEach(function(p){
+    dosa('x', 4.09, p[0], p[1], 4.1, -1, 'iv_gips'); dosa('x', 4.21, p[0], p[1], 4.2, 1, 'iv_gips'); });
+  [[3.64,1.1],[5.03,1.1]].forEach(function(p){ dosa('x', 4.21, p[0], p[1], 4.2, 1, 'iv_gips'); });
   /* övervåning */
   [[1.5,F2+0.2],[4.5,F2+0.2],[8.0,F2+0.2],[10.2,F2+0.2],[12.5,F2+0.2]].forEach(function(p){ dN(p[0], p[1]); });
   [[2.0,F2+0.2],[4.2,F2+0.2],[11.0,F2+0.2],[12.8,F2+0.2]].forEach(function(p){ dS(p[0], p[1]); });
@@ -5191,10 +5187,10 @@ var STEPS = [
   {k:'install',  n:'El- och VVS-dragning', d:'Dosor, rör-i-rör, avloppsstosar, elcentral'},
   {k:'tak',      n:'Innertak', d:'Glespanel + gips på båda planen, inklädnad av trapphålet'},
   {k:'gips_yv',  n:'Gips på ytterväggarna', d:'Skivor på installationsskiktet'},
-  {k:'iv_gips',  n:'Innerväggar – gips', d:'Skivor, spackel och målning'},
+  {k:'iv_gips',  n:'Innerväggar – OSB/gips', d:'Skivor på alla innerväggar inkl. hjärtväggen, spackel och målning'},
   {k:'vatrum',   n:'Våtrum – tätskikt, klinker & kakel', d:'Badrum, WC/dusch och tvättstuga'},
   {k:'golv',     n:'Golv', d:'Furugolv och klinker i entré/förråd'},
-  {k:'trappa',   n:'Trappa & räcke', d:'Ersätter byggtrappan'},
+  {k:'trappa',   n:'Trappa & räcke', d:'Trappan upp till övervåningen'},
   {k:'snick',    n:'Snickerier', d:'Smygar, foder, golvlister, fönsterbänkar, innerdörrar'},
   {k:'kok',      n:'Kök', d:'Skåp, bänkar, vitvaror och köksö'},
   {k:'sanitet',  n:'Porslin & maskiner', d:'WC, dusch, badkar, tvättmaskiner, värmepump'},
