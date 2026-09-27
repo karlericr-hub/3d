@@ -55,6 +55,10 @@
     background:rgba(255,255,255,.14);color:#f2efe8;}
   #steps button:hover{background:rgba(255,255,255,.24);}
   #steps .keys{margin-top:8px;opacity:.55;font-size:11px;}
+  #steps .ror{margin-top:12px;padding-top:10px;border-top:1px solid rgba(255,255,255,.12);}
+  #steps .ror > b{display:block;font-size:13px;margin-bottom:4px;}
+  #steps .ror .sw{flex:0 0 20px;height:8px;margin-top:6px;border-radius:4px;}
+  #steps .ror .note{opacity:.55;font-size:11px;line-height:1.4;margin:6px 4px 0;}
   @media (max-width:600px){ #steps{width:auto;left:12px;right:12px;top:auto;bottom:160px;max-height:45%;} }
 </style>
 </head>
@@ -96,6 +100,18 @@
       <button id="bAll" title="Visa färdigt hus">Allt</button>
     </div>
     <div class="keys" id="stepsKeys"></div>
+    <div class="ror">
+      <b>Rördragning <span style="opacity:.55;font-weight:400;font-size:11px">· VS-ritning V-52.1</span></b>
+      <label><input type="checkbox" id="rVatten"><span class="sw" style="background:linear-gradient(90deg,#e0402f 50%,#2f7fe0 50%)"></span>
+        <span>Tappvatten<small>KV blå / VV röd, rör-i-rör från fördelaren VM1, inkommande KV8</small></span></label>
+      <label><input type="checkbox" id="rAvlopp"><span class="sw" style="background:#8d9299"></span>
+        <span>Avlopp<small>S1/S2 110 &amp; 75, stammar, luftare över tak, rensbrunn</small></span></label>
+      <label><input type="checkbox" id="rVarme"><span class="sw" style="background:linear-gradient(90deg,#f08a1c 50%,#a8741a 50%)"></span>
+        <span>Värme VS1<small>Värmepump → golvvärmefördelare plan 1 och plan 2</small></span></label>
+      <label><input type="checkbox" id="rXray"><span class="sw" style="background:rgba(255,255,255,.35)"></span>
+        <span>Genomlysning<small>Visa rören genom golv, väggar och bjälklag</small></span></label>
+      <div class="note">Ventilation ingår inte i ritningsunderlaget och är inte inritad. Tangent R visar/döljer alla rör.</div>
+    </div>
   </div>
 </div>
 <div id="joy"><div id="knob"></div></div>
@@ -4756,7 +4772,7 @@ LAYER = ['install'];
   tapp(9.12, -0.012, 7.08, 0.55);  avlopp(9.0, -0.012, 7.05, 0.028, 0.4);      /* tvättställ */
   tapp(7.72, -0.012, 5.9, 1.1);                                                /* dusch */
   /* övervåning: stammar upp genom bjälklaget i badrummet */
-  tapp(6.7, F2-0.01, 7.1, 0.45);   avlopp(7.0, F2-0.01, 7.1, 0.028, 0.35);     /* ovanför kommoden, bad */
+  tapp(6.9, F2-0.01, 5.56, 0.5);   avlopp(7.15, F2-0.01, 5.56, 0.028, 0.35);   /* under kommoden, bad (V-52.1-121) */
   avlopp(7.91, F2-0.01, 5.6, 0.055, 0.12); tapp(7.75, F2-0.01, 5.55, 0.3);     /* wc */
   tapp(8.8, F2-0.01, 5.62, 0.55);  avlopp(9.05, F2-0.01, 6.3, 0.028, 0.1);     /* badkar */
   /* eldosor på ytterväggarnas reglar och hjärtväggen (uttag 0,2 m, strömbrytare 1,1 m) */
@@ -5147,6 +5163,174 @@ function tree(x,z,s){
   crown.position.set(x, 2.2*s, z); crown.castShadow=true; scene.add(crown);
 }
 
+/* ---------- Rördragning enligt VS-ritningarna (Vipro, bygghandling 2026-06-10) ----------
+ * V-52.1-111 (plan 1), V-52.1-121 (plan 2) och utsättningen V-50.1-111. Ritningens
+ * vektorlinjer är avlästa i skala 1:50 och förda över till modellens rum och
+ * tappställen – arkitektplanen och VS-planen skiljer sig några decimeter, så
+ * dragningen följer ritningens topologi men ansluter till modellens stosar.
+ * Egen meny (Rördragning), oberoende av byggstegen. "Genomlysning" ritar rören
+ * ovanpå allt annat så att de syns genom golv, väggar och bjälklag.
+ * Ventilation finns inte i underlaget (inga V-57-ritningar) och är inte inritad. */
+var PIPE = (function(){
+  var F2 = 2.8;
+  var YS = -0.06;    /* tappvatten/PEX ingjutet i plattan */
+  var YD = -0.22;    /* avlopp i/under plattan */
+  var YW2 = 2.72;    /* tappvatten i bjälklaget till plan 2 */
+  var YD2 = 2.63;    /* avlopp i bjälklaget till plan 2 */
+  var YV = 2.66;     /* värme VS1 mellan takbjälkarna */
+  var root = new THREE.Group();
+  var overlay = new THREE.Scene();
+  overlay.add(new THREE.HemisphereLight(0xffffff, 0x6a6a6a, 0.95));
+  var ovSun = new THREE.DirectionalLight(0xffffff, 0.55); ovSun.position.set(4, 10, 6); overlay.add(ovSun);
+  var groups = {vatten:new THREE.Group(), avlopp:new THREE.Group(), varme:new THREE.Group()};
+  Object.keys(groups).forEach(function(k){ groups[k].visible = false; root.add(groups[k]); });
+  function M(c){ return new THREE.MeshStandardMaterial({color:c, roughness:.45, metalness:.05}); }
+  var mKV = M(0x2f7fe0), mVV = M(0xe0402f), mKV8 = M(0x1d4f9a), mAV = M(0x8d9299),
+      mVSf = M(0xf08a1c), mVSr = M(0xa8741a), mSkap = M(0xf4f4f0);
+  var UP = new THREE.Vector3(0,1,0);
+
+  function seg(g, a, b, r, mat){
+    var va = new THREE.Vector3(a[0],a[1],a[2]), vb = new THREE.Vector3(b[0],b[1],b[2]);
+    var L = va.distanceTo(vb); if (L < 1e-4) return;
+    var m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, L, r > 0.03 ? 16 : 10, 1, true), mat);
+    m.position.copy(va).add(vb).multiplyScalar(0.5);
+    m.quaternion.setFromUnitVectors(UP, vb.sub(va).normalize());
+    g.add(m);
+  }
+  /* rörsträng genom punkterna [x,y,z]; kulor i skarvarna ger mjuka böjar */
+  function run(g, pts, r, mat){
+    for (var i=0; i<pts.length-1; i++) seg(g, pts[i], pts[i+1], r, mat);
+    pts.forEach(function(p){
+      var s = new THREE.Mesh(new THREE.SphereGeometry(r, r > 0.03 ? 14 : 8, r > 0.03 ? 10 : 6), mat);
+      s.position.set(p[0], p[1], p[2]); g.add(s);
+    });
+  }
+  /* parallellförskjutning i planet (lodräta delar ärver grannsträckans riktning) */
+  function offsetPath(pts, d){
+    var ps = [], i;
+    for (i=0; i<pts.length-1; i++){
+      var dx = pts[i+1][0]-pts[i][0], dz = pts[i+1][2]-pts[i][2], l = Math.hypot(dx, dz);
+      ps.push(l < 1e-6 ? null : [-dz/l, dx/l]);
+    }
+    for (i=0; i<ps.length; i++) if (!ps[i]){
+      for (var k=1; k<ps.length; k++){
+        if (ps[i+k]){ ps[i] = ps[i+k]; break; }
+        if (ps[i-k]){ ps[i] = ps[i-k]; break; }
+      }
+    }
+    return pts.map(function(p, i){
+      var a = ps[i-1] || ps[i], b = ps[i] || ps[i-1];
+      var mx = a[0]+b[0], mz = a[1]+b[1], ml = Math.hypot(mx, mz);
+      if (ml < 1e-6){ mx = b[0]; mz = b[1]; ml = 1; }
+      mx /= ml; mz /= ml;
+      var sc = d / Math.max(0.5, mx*b[0] + mz*b[1]);
+      return [p[0] + mx*sc, p[1], p[2] + mz*sc];
+    });
+  }
+  /* rörpar (rör-i-rör / fram- och returledning); ma hamnar på västra sidan i
+     slutpunkten, precis som tapp()-stosarna (varmt väster, kallt öster) */
+  function pair(g, pts, r, ma, mb, d){
+    d = d || 0.035;
+    var A = offsetPath(pts, d), B = offsetPath(pts, -d);
+    if (A[A.length-1][0] > B[B.length-1][0] + 1e-6){ var t = A; A = B; B = t; }
+    run(g, A, r, ma); run(g, B, r, mb);
+  }
+
+  /* ===== Tappvatten (KV blå / VV röd) ===== */
+  var gW = groups.vatten;
+  /* VM1 – Uponor-fördelare i skåp 550×650×125, infällt i väggen tvättstuga/WC */
+  (function(){
+    var sk = new THREE.Mesh(new THREE.BoxGeometry(0.125, 0.55, 0.65),
+      new THREE.MeshStandardMaterial({color:0xf4f4f0, roughness:.4, transparent:true, opacity:.35, depthWrite:false}));
+    sk.position.set(7.4275, 0.575, 6.225); gW.add(sk);
+    run(gW, [[7.40, 0.50, 5.93], [7.40, 0.50, 6.52]], 0.018, mKV);   /* fördelarbalk kallt */
+    run(gW, [[7.40, 0.70, 5.93], [7.40, 0.70, 6.52]], 0.018, mVV);   /* fördelarbalk varmt */
+  })();
+  /* KV8-32 inkommande servis (PEM i skyddsrör), under entrén in till fördelaren */
+  run(gW, [[16.0,-0.8,5.97],[13.8,-0.8,5.97],[13.55,-0.35,5.97],[7.46,-0.35,5.97],[7.46,0.5,5.97]], 0.02, mKV8);
+  var MX = 7.40, YM = 0.32;
+  function krets(z0, pts, r){ pair(gW, [[MX, YM, z0], [MX, YS, z0]].concat(pts), r || 0.011, mVV, mKV); }
+  function upp(x, z, y){ return [x, y === undefined ? -0.01 : y, z]; }
+  /* BL1 kök KV1/VV1-20 inkl. DM: väster, norrut genom hjärtväggen, längs z 3,6 och diagonalt till diskbänken */
+  krets(5.98, [[7.3,YS,5.98],[7.3,YS,3.6],[11.6,YS,3.6],[12.95,YS,2.25],[12.95,YS,1.75], upp(12.95,1.75)], 0.013);
+  /* VUK1 utvändig vattenutkastare KV1-15 i östra ytterväggen */
+  run(gW, [[12.985,YS,2.25],[13.3,YS,2.25],[13.3,0.45,2.25],[13.6,0.45,2.25]], 0.01, mKV);
+  (function(){ var v = new THREE.Mesh(new THREE.BoxGeometry(0.06,0.09,0.06), M(0x9aa0a6)); v.position.set(13.63,0.45,2.25); gW.add(v); })();
+  /* BL21 duschblandare KV1/VV1-15 */
+  krets(6.08, [[7.72,YS,6.08],[7.72,YS,5.9], upp(7.72,5.9)]);
+  /* TS1 tvättställ WC KV1/VV1-12 */
+  krets(6.18, [[8.7,YS,6.18],[9.12,YS,6.6],[9.12,YS,7.08], upp(9.12,7.08)]);
+  /* VK1 wc KV1-12 (stosen har båda rören) */
+  krets(6.28, [[8.25,YS,6.28],[8.25,YS,7.17],[7.96,YS,7.17],[7.96,YS,7.1], upp(7.96,7.1)]);
+  /* BL2 tvättbänk KV1/VV1-12 inkl. TM */
+  krets(6.38, [[6.6,YS,6.38],[6.6,YS,7.05], upp(6.6,7.05)]);
+  pair(gW, [[6.6,YS,6.82],[5.96,YS,6.82],[5.96,YS,7.05], upp(5.96,7.05)], 0.011, mVV, mKV);
+  /* VP värmepump KV1/VV1-25 */
+  krets(6.50, [[7.2,YS,6.50],[7.2,YS,7.05], upp(7.2,7.05)], 0.014);
+  /* Plan 2: stammar upp i väggen från fördelaren, sedan i bjälklaget till badrummet */
+  function krets2(z0, pts){ pair(gW, [[7.555, 0.85, z0], [7.555, YW2, z0]].concat(pts), 0.011, mVV, mKV); }
+  krets2(6.10, [[6.9,YW2,6.10],[6.9,YW2,5.56], upp(6.9,5.56,F2-0.01)]);   /* TS1 kommod */
+  krets2(6.22, [[7.75,YW2,6.22],[7.75,YW2,5.55], upp(7.75,5.55,F2-0.01)]); /* VK1 wc */
+  krets2(6.34, [[8.8,YW2,6.34],[8.8,YW2,5.62], upp(8.8,5.62,F2-0.01)]);    /* BL22 badkar */
+
+  /* ===== Avlopp (grå PP, S1 inomhus / S2 mark) ===== */
+  var gA = groups.avlopp, R110 = 0.055, R75 = 0.0375;
+  /* stammar S1-110 och 2 × S1-75 sidodragna i väggen tvättstuga/WC; 110:an fortsätter som luftare 75 över tak */
+  run(gA, [[7.555,-0.25,5.55],[7.555,YD2,5.55]], R110, mAV);
+  run(gA, [[7.555,YD2,5.55],[7.555,7.15,5.55]], R75, mAV);
+  (function(){ var h = new THREE.Mesh(new THREE.CylinderGeometry(0.06,0.06,0.08,14), M(0x2c2e30)); h.position.set(7.555,7.19,5.55); gA.add(h); })();
+  run(gA, [[7.555,YD,5.70],[7.555,YD2,5.70]], R75, mAV);
+  run(gA, [[7.555,YD,5.85],[7.555,YD2,5.85]], R75, mAV);
+  /* plan 2 */
+  run(gA, [[7.91,F2-0.01,5.6],[7.91,YD2,5.6],[7.91,YD2,5.55],[7.555,YD2,5.55]], R110, mAV);   /* VK1 wc */
+  run(gA, [[7.15,F2-0.01,5.56],[7.15,YD2,5.56],[7.15,YD2,5.70],[7.555,YD2,5.70]], R75, mAV);  /* TS1 kommod */
+  run(gA, [[9.05,F2-0.01,6.3],[9.05,YD2,6.3],[9.05,YD2,5.85],[7.555,YD2,5.85]], R75, mAV);    /* B22 badkar */
+  /* plan 1: S2-110 samlingsledning längs z 5,55 ut genom östra grunden till förbindelsepunkten */
+  run(gA, [[7.555,-0.25,5.55],[13.5,-0.30,5.55],[14.5,-0.55,5.55],[16.0,-0.6,5.55]], R110, mAV);
+  (function(){   /* RB1 rensbrunn 110 vid anslutningen */
+    var top = window._groundPad ? window._groundPad(15.2, 5.55) : -0.1;
+    run(gA, [[15.2,-0.57,5.55],[15.2,top,5.55]], R110, mAV);
+    var lock = new THREE.Mesh(new THREE.CylinderGeometry(0.075,0.075,0.02,16), M(0x2c2e30));
+    lock.position.set(15.2, top+0.01, 5.55); gA.add(lock);
+  })();
+  run(gA, [[7.555,YD,5.70],[7.75,YD,5.70],[7.9,-0.25,5.55]], R75, mAV);
+  run(gA, [[7.555,YD,5.85],[7.85,YD,5.85],[8.15,-0.25,5.55]], R75, mAV);
+  run(gA, [[8.1,-0.012,5.95],[8.1,YD,5.95],[8.5,-0.25,5.55]], R75, mAV);        /* B21 golvbrunn dusch */
+  /* tvättstuga (B21, TM, tvättbänk) + WC och tvättställ, diagonalt till samlingsledningen */
+  run(gA, [[6.05,-0.012,5.95],[6.05,YD,5.95],[6.05,YD,6.62]], R75, mAV);        /* B21 golvbrunn tvättstuga */
+  run(gA, [[5.8,-0.012,7.05],[5.8,YD,7.05],[5.8,YD,6.62],[7.96,YD,6.62]], R75, mAV);
+  run(gA, [[6.45,-0.012,7.05],[6.45,YD,7.05],[6.45,YD,6.62]], R75, mAV);        /* BL2 tvättbänk */
+  run(gA, [[7.96,-0.012,6.9],[7.96,YD,6.9],[7.96,YD,6.62],[8.5,YD,6.62],[9.57,-0.25,5.55]], R110, mAV);   /* VK1 wc */
+  run(gA, [[9.0,-0.012,7.05],[9.0,YD,7.05],[9.0,YD,6.12]], R75, mAV);           /* TS1 */
+  /* kök: golvbrunn + diskbänk BL1 längs östra väggen */
+  run(gA, [[12.9,-0.012,1.9],[12.9,YD,1.9],[12.95,YD,2.05],[12.95,YD,5.3],[13.2,-0.28,5.55]], R75, mAV);
+  run(gA, [[12.95,-0.012,2.05],[12.95,YD,2.05]], R75, mAV);
+
+  /* ===== Värme VS1 (fram orange / retur brun), Uponor Combi PEX ===== */
+  var gV = groups.varme;
+  /* från värmepumpen i tvättstugan, mellan takbjälkarna till golvvärmefördelaren på hjärtväggen */
+  pair(gV, [[7.2,1.9,6.85],[7.2,YV,6.85],[5.62,YV,5.27],[5.62,YV,4.25],[5.62,1.0,4.25]], 0.012, mVSf, mVSr, 0.03);
+  /* genomgående matning upp till fördelaren på plan 2 (väggen hall/förråd) */
+  pair(gV, [[5.62,YV,5.1],[5.4,YV,5.1],[5.4,YV,6.45],[5.31,YV,6.45],[5.31,F2+0.3,6.45]], 0.012, mVSf, mVSr, 0.03);
+  (function(){
+    var s = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.6, 0.6), mSkap);
+    s.position.set(5.31, F2+0.6, 6.45); gV.add(s);
+  })();
+
+  root.traverse(function(o){ o.castShadow = o.receiveShadow = false; });
+  var state = {vatten:false, avlopp:false, varme:false, xray:true};
+  function apply(){
+    Object.keys(groups).forEach(function(k){ groups[k].visible = state[k]; });
+    if (state.xray) overlay.add(root);
+    else THREE.Object3D.prototype.add.call(scene, root);   /* förbi lager-märkningen i scene.add */
+    try { localStorage.setItem('villaRor', JSON.stringify(state)); } catch(e){}
+  }
+  return {
+    state: state, overlay: overlay, apply: apply,
+    active: function(){ return state.xray && (state.vatten || state.avlopp || state.varme); }
+  };
+})();
+
 /* ---------- Rumsindikator ---------- */
 var rooms = [
   {n:'Kök / Vardagsrum · 51,1 m²', x1:0.3,z1:0.3,x2:13.2,z2:4.15},
@@ -5238,6 +5422,26 @@ function applyLayers(){
   try { var sv = JSON.parse(localStorage.getItem('villaSteg') || 'null'); if (sv) STEPS.forEach(function(st){ LAYER_ON[st.k] = !!sv[st.k]; }); } catch(e){}
   if (/[?&]allt=1\b/.test(location.search)) STEPS.forEach(function(st){ LAYER_ON[st.k] = true; });
   applyLayers();
+})();
+
+/* ---------- Meny: rördragning ---------- */
+(function(){
+  var ids = {vatten:'rVatten', avlopp:'rAvlopp', varme:'rVarme', xray:'rXray'};
+  try { var sv = JSON.parse(localStorage.getItem('villaRor') || 'null');
+        if (sv) Object.keys(ids).forEach(function(k){ if (k in sv) PIPE.state[k] = !!sv[k]; }); } catch(e){}
+  if (/[?&]ror=1\b/.test(location.search)) PIPE.state.vatten = PIPE.state.avlopp = PIPE.state.varme = true;
+  function sync(){ Object.keys(ids).forEach(function(k){
+    var cb = document.getElementById(ids[k]); cb.checked = PIPE.state[k];
+    cb.parentNode.className = PIPE.state[k] ? 'on' : ''; }); PIPE.apply(); }
+  Object.keys(ids).forEach(function(k){
+    document.getElementById(ids[k]).addEventListener('change', function(e){ PIPE.state[k] = e.target.checked; sync(); });
+  });
+  addEventListener('keydown', function(e){
+    if (e.repeat || e.code !== 'KeyR') return;
+    var on = !(PIPE.state.vatten || PIPE.state.avlopp || PIPE.state.varme);
+    PIPE.state.vatten = PIPE.state.avlopp = PIPE.state.varme = on; sync();
+  });
+  sync();
 })();
 
 /* ---------- Spelare & kontroller ---------- */
@@ -5405,6 +5609,11 @@ function tick(){
   var rose=document.getElementById('compassRose');
   if (rose){ var ang=(player.yaw*180/Math.PI) - 232.7; rose.setAttribute('transform','rotate('+ang+' 28 28)'); }
   if (composer) composer.render(); else renderer.render(scene, camera);
+  if (PIPE.active()){   /* genomlysning: rören ritas ovanpå, med eget djup */
+    renderer.autoClear = false; renderer.clearDepth();
+    renderer.render(PIPE.overlay, camera);
+    renderer.autoClear = true;
+  }
 }
 tick();
 
