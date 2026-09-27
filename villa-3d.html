@@ -3458,6 +3458,51 @@ var matRorB = new THREE.MeshStandardMaterial({color:0x2f6bb3, roughness:.5});
 var matRorG = new THREE.MeshStandardMaterial({color:0x8c8f93, roughness:.6});
 var matElDosa = new THREE.MeshStandardMaterial({color:0x3f7fbf, roughness:.6});
 var LIN = 0.058;   /* installationsskikt 45 + gips 13 mm på ytterväggarnas insida */
+/* Byggplast i taket – tunn halvklar film, takstolarna anas ovanför */
+var matPlastTak = new THREE.MeshStandardMaterial({color:0xcad6dc, roughness:.25, transparent:true, opacity:.72,
+  side:THREE.DoubleSide, depthWrite:false});
+/* Mineralull i installationsskiktet och lösull på vindsbjälklaget (texturen i meter) */
+var matIsolB = new THREE.MeshStandardMaterial({map:makeTex(512, drawIsol, 1/1.2, 1/1.2), roughness:1});
+var matLosull = new THREE.MeshStandardMaterial({color:0xf2efe6, map:makeTex(512, drawIsol, 1/0.8, 1/0.8), roughness:1});
+/* OSB-skiva 1200 × 2400 – liggande (ytterväggar) eller stående (innerväggar); texturen = 2,4 × 2,4 m */
+function drawOSB(lying){ return function(g, s){
+  g.fillStyle = '#c9a063'; g.fillRect(0,0,s,s);
+  for (var i=0;i<4500;i++){
+    var l = 50+Math.random()*22, w = 8+Math.random()*26, h = 3+Math.random()*7;
+    g.save(); g.translate(Math.random()*s, Math.random()*s); g.rotate(Math.random()*Math.PI);
+    g.fillStyle = 'hsla('+(30+Math.random()*10)+',48%,'+l+'%,0.8)'; g.fillRect(-w/2,-h/2,w,h);
+    g.restore();
+  }
+  g.fillStyle = 'rgba(70,45,20,0.75)';
+  if (lying){ g.fillRect(0,0,s,3); g.fillRect(0,s/2-1,s,3); g.fillRect(0,0,3,s/2); g.fillRect(s/2-1,s/2,3,s/2); }
+  else      { g.fillRect(0,0,3,s); g.fillRect(s/2-1,0,3,s); g.fillRect(0,0,s/2,3); g.fillRect(s/2,s/2-1,s/2,3); }
+}; }
+var matOsbL = new THREE.MeshStandardMaterial({map:makeTex(1024, drawOSB(true), 1/2.4, 1/2.4), roughness:.8});
+var matOsbS = new THREE.MeshStandardMaterial({map:makeTex(1024, drawOSB(false), 1/2.4, 1/2.4), roughness:.8});
+/* Omålad gips: grått kartong, spacklade skarvar (c/c 1,2 m) och skruvhål */
+function drawGipsRa(g, s){
+  g.fillStyle = '#d2cfc8'; g.fillRect(0,0,s,s);
+  for (var i=0;i<3000;i++){
+    g.fillStyle = 'rgba(150,145,135,'+(Math.random()*0.12)+')';
+    g.fillRect(Math.random()*s, Math.random()*s, 2, 2);
+  }
+  g.fillStyle = 'rgba(246,244,240,0.45)'; g.fillRect(0,0,34,s); g.fillRect(s-34,0,34,s);
+  g.fillStyle = 'rgba(248,246,242,0.9)';  g.fillRect(0,0,14,s); g.fillRect(s-14,0,14,s);
+  g.fillStyle = 'rgba(246,244,240,0.7)';
+  for (var y=s/12; y<s; y+=s/6) [0, s/2, s].forEach(function(x){
+    g.beginPath(); g.arc(x, y, 3.5, 0, 7); g.fill();
+  });
+}
+var texGipsRa = makeTex(512, drawGipsRa, 1/1.2, 1/1.2);
+var matGipsRa  = new THREE.MeshStandardMaterial({map:texGipsRa, roughness:.95});
+var matGipsRaC = new THREE.MeshStandardMaterial({map:texGipsRa, roughness:1, emissive:0xffffff,
+  emissiveMap:texGipsRa, emissiveIntensity:0.3});
+var matVent = new THREE.MeshStandardMaterial({color:0xaeb3b8, roughness:.35, metalness:.7, envMapIntensity:.5});
+/* Gipsytor visas omålade tills målningen (sista steget) är ikryssad */
+var GIPS = [];
+function gips(m, raw){ m.userData.paint = m.material; m.userData.raw = raw || matGipsRa; GIPS.push(m); return m; }
+/* Vindsluckan i hallen på övervåningen (x 5,5–6,1 mellan takstolarna, z 4,5–5,2) */
+var HATCH = {x1:5.5, x2:6.1, z1:4.5, z2:5.2};
 
 /* ---------- Hjälpare ---------- */
 var colliders = [];
@@ -3592,7 +3637,6 @@ function windowGlow(cx,cy,w2,h2,z){
 function buildWall(w){
   /* byggsteg: ytterväggar och hjärtväggen levereras, övriga innerväggar byggs.
      Fasadpanelen (w.mat satt) följer det steg som gäller när den byggs. */
-  var wl = (w.fmat || w.mat) ? LAYER : ['iv_gips'];   /* även hjärtväggens skivor */
   var Y0 = w.y0 || 0, Y1 = w.y1 || H;
   var ops = (w.openings||[]).slice().sort(function(a,b){return a.from-b.from;});
   var segs = [], cur = w.from;
@@ -3603,7 +3647,27 @@ function buildWall(w){
     cur = o.to;
   });
   if (cur < w.to) segs.push({a:cur, b:w.to, y0:Y0, y1:Y1, col:true});
-  withLayer(wl, function(){ segs.forEach(function(s){ wallBox(w, s.a, s.b, s.y0, s.y1, s.col); }); });
+  /* väggarna runt trappan (w.trapp = längdintervall) kläs i ett tidigare steg än övriga */
+  if (w.trapp){
+    var sp = [];
+    segs.forEach(function(sg){
+      var cuts = [sg.a];
+      w.trapp.forEach(function(c){ if (c > sg.a + 1e-3 && c < sg.b - 1e-3) cuts.push(c); });
+      cuts.push(sg.b);
+      for (var i=0;i<cuts.length-1;i++) sp.push({a:cuts[i], b:cuts[i+1], y0:sg.y0, y1:sg.y1, col:sg.col});
+    });
+    segs = sp;
+  }
+  if (w.fmat || w.mat) segs.forEach(function(s){ wallBox(w, s.a, s.b, s.y0, s.y1, s.col); });
+  else segs.forEach(function(s){
+    /* innervägg: OSB (stående) i ett steg, gips i nästa – även hjärtväggens skivor */
+    if (w.trapp && s.a >= w.trapp[0] - 1e-3 && s.b <= w.trapp[1] + 1e-3)
+      withLayer(['trapp_vagg'], function(){ gips(wallBox(w, s.a, s.b, s.y0, s.y1, s.col)); });
+    else {
+      withLayer(['iv_gips'], function(){ gips(wallBox(w, s.a, s.b, s.y0, s.y1, s.col)); });
+      withLayer(['gips_yv','!iv_gips'], function(){ wallBox(w, s.a, s.b, s.y0, s.y1, s.col, matOsbS); });
+    }
+  });
   /* golvlist längs golvnära väggsegment */
   var sl = w.fmat ? ['gips_yv','snick'] : ['iv_gips','snick'];
   withLayer(sl, function(){ segs.forEach(function(s){
@@ -3677,19 +3741,22 @@ function studs(w, ops, Y0, Y1){
     if (o.b > Y0) wbox(w, o.from, o.b - R, c1, o.to, o.b, c2, matVirke);
   });
 }
-function wallBox(w, a, b, y0, y1, col){
-  var m = (w.mat || matWall);
+function wallBox(w, a, b, y0, y1, col, mo){
+  var m = mo || w.mat || matWall;
   if (w.fmat){
     /* yttervägg: stomme med plast mot rummet + installationsskikt/gips som eget byggsteg */
     var inS = (w.skirt === 'pos') ? 1 : -1;
     var outF = w.at - inS*w.th/2, face = w.at + inS*w.th/2, pl = face - inS*LIN;
     var core = wbox(w, a, y0, outF, b, y1, pl, matPlast);
     if (col){ if (w.axis === 'x') addCol(a, outF, b, pl, y0, y1); else addCol(outF, a, pl, b, y0, y1); }
-    withLayer(['gips_yv'], function(){ wbox(w, a, y0, pl, b, y1, face, matWall); });
+    /* isolering mellan de liggande reglarna, sedan liggande OSB och till sist gips */
+    withLayer(['isol_yv'], function(){ wbox(w, a, y0, pl + inS*0.002, b, y1, pl + inS*0.041, matIsolB); });
+    withLayer(['gips_yv','!iv_gips'], function(){ wbox(w, a, y0, pl, b, y1, face, matOsbL); });
+    withLayer(['iv_gips'], function(){ gips(wbox(w, a, y0, pl, b, y1, face, matWall)); });
     return core;
   }
-  if (w.axis === 'x') box(a, y0, w.at - w.th/2, b, y1, w.at + w.th/2, m, col);
-  else                box(w.at - w.th/2, y0, a, w.at + w.th/2, y1, b, m, col);
+  if (w.axis === 'x') return box(a, y0, w.at - w.th/2, b, y1, w.at + w.th/2, m, col);
+  return box(w.at - w.th/2, y0, a, w.at + w.th/2, y1, b, m, col);
 }
 function decorate(w, o){
   var t = w.th, ft = t + 0.05, f = 0.055;
@@ -3840,7 +3907,7 @@ var walls = [
     {from:5.6, to:6.6, b:0.0, t:2.1, type:'door'}         /* YD 10x21 – öppen */
   ]},
   /* Innerväggar */
-  {axis:'x', at:4.15, th:0.1, from:0.3, to:10.15, hjarta:true, openings:[
+  {axis:'x', at:4.15, th:0.1, from:0.3, to:10.15, hjarta:true, trapp:[7.0,10.15], openings:[
     {from:3.8, to:4.9, b:0, t:2.1, type:'open'}           /* öppning till hall */
   ]},
   {axis:'z', at:3.65, th:0.1, from:4.2, to:7.2, openings:[
@@ -3853,7 +3920,7 @@ var walls = [
   ]},
   {axis:'z', at:7.05, th:0.1, from:4.2, to:5.45, openings:[]},
   {axis:'z', at:7.55, th:0.1, from:5.45, to:7.2, openings:[]},
-  {axis:'x', at:5.4, th:0.1, from:7.0, to:10.15, openings:[]},
+  {axis:'x', at:5.4, th:0.1, from:7.0, to:10.15, trapp:[7.0,10.15], openings:[]},
   {axis:'x', at:5.4, th:0.1, from:12.6, to:13.2, openings:[]},
   {axis:'z', at:9.65, th:0.1, from:5.45, to:7.2, openings:[
     {from:5.7, to:6.6, b:0, t:2.1, type:'door'}           /* wc/d 9x21 */
@@ -3867,6 +3934,12 @@ function floorPlane(x1,z1,x2,z2,mat,y){
   m.rotation.x = -Math.PI/2;
   m.position.set((x1+x2)/2, y||0, (z1+z2)/2);
   m.receiveShadow = true; scene.add(m); return m;
+}
+/* planets UV i meter (för texturer med repeat per meter) */
+function planeUV(m, w, h){
+  var uv = m.geometry.attributes.uv;
+  for (var i=0;i<uv.count;i++) uv.setXY(i, uv.getX(i)*w, uv.getY(i)*h);
+  uv.needsUpdate = true; return m;
 }
 /* --- Leveransskick: betongplatta med golvbrunnar, golvvärmefördelare, bjälklag underifrån --- */
 floorPlane(0.2,0.2,13.3,7.3, matBetong, -0.012);   /* går in under väggarnas installationsskikt */
@@ -3914,6 +3987,7 @@ floorPlane(9.7,5.45,13.2,7.2, matTileEnt, 0.012); /* entré */
 floorPlane(3.7,5.45,4.9,7.2, matTileKl, 0.012);   /* förråd */
 LAYER = ['vatrum'];
 floorPlane(7.6,5.45,9.6,7.2, matTileWC, 0.012);   /* wc/d */
+LAYER = ['vatrum_tt'];
 floorPlane(5.0,4.2,7.0,7.2, matTileKl, 0.012);    /* tvättstuga, övre delen */
 floorPlane(7.0,5.45,7.5,7.2, matTileKl, 0.012);   /* tvättstuga, bredare nedre delen */
 golvbrunn(6.05, 5.95, 0.012);                     /* brunnens sats i klinkern */
@@ -3923,6 +3997,25 @@ LAYER = ['tak'];
 [[0.3,0.3,13.2,4.15],[0.3,5.4,13.2,7.2],[0.3,4.15,7.0,5.4],[10.2,4.15,13.2,5.4]].forEach(function(r){
   var c = floorPlane(r[0],r[1],r[2],r[3], matCeil, H-0.005);
   c.rotation.x = Math.PI/2;
+  gips(planeUV(c, r[2]-r[0], r[3]-r[1]), matGipsRaC);
+});
+/* glespanel 28×70 c/c 300 tvärs bjälkarna, runt trapphålet */
+LAYER = ['glesp_nv'];
+for (var gz=0.36; gz<7.2; gz+=0.3){
+  if (gz > 4.1 && gz < 5.45){ box(0.3,H+0.032,gz-0.035, 7.0,H+0.06,gz+0.035, matVirke,false);
+                              box(10.2,H+0.032,gz-0.035, 13.2,H+0.06,gz+0.035, matVirke,false); }
+  else box(0.3,H+0.032,gz-0.035, 13.2,H+0.06,gz+0.035, matVirke,false);
+}
+/* målade väggar och tak i tvättstugan – övriga rum målas i sista steget */
+LAYER = ['mala_tt','!maleri'];
+[[5.0,4.2,5.003,4.35,0,H],[5.0,4.35,5.003,5.25,2.1,H],[5.0,5.25,5.003,5.75,0,H],
+ [5.0,5.75,5.003,6.55,2.1,H],[5.0,6.55,5.003,7.2,0,H],        /* väster, två dörrar */
+ [5.0,4.2,7.0,4.203,0,H],                                     /* norr (hjärtväggen) */
+ [6.997,4.2,7.0,5.45,0,H],[7.0,5.45,7.5,5.453,0,H],[7.497,5.45,7.5,7.2,0,H],
+ [5.0,7.197,5.4,7.2,0,H],[5.4,7.197,6.2,7.2,0,0.7],[5.4,7.197,6.2,7.2,2.2,H],[6.2,7.197,7.5,7.2,0,H]
+].forEach(function(b){ box(b[0],b[4],b[1], b[2],b[5],b[3], matWall, false); });
+[[5.0,4.2,7.0,5.45],[5.0,5.45,7.5,7.2]].forEach(function(r){
+  floorPlane(r[0],r[1],r[2],r[3], matCeil, H-0.007).rotation.x = Math.PI/2;
 });
 
 /* Väggkakel i badrummet (fritt vid dörren mot entrén) */
@@ -3933,6 +4026,7 @@ box(9.56,0,6.62, 9.59,2.0,7.19, matWallWC,false);
 box(7.64,0,5.46, 9.56,2.0,5.49, matWallWC,false);
 box(7.64,0,7.16, 9.56,2.0,7.19, matWallWC,false);
 /* Väggkakel i tvättstugan (fritt vid dörrar, fönster och skåp) */
+LAYER = ['vatrum_tt'];
 box(5.01,0,5.31, 5.04,2.0,5.69, matWallWC,false);
 box(5.01,0,6.61, 5.04,2.0,7.15, matWallWC,false);
 box(5.04,0,4.21, 6.96,2.0,4.24, matWallWC,false);
@@ -3958,12 +4052,12 @@ var stair = {x0:7.15, x1:10.15, z0:4.25, z1:5.3, steps:15, depth:0.2, rise:2.8/1
     r.position.set(8.65, 2.32, z); r.rotation.z = -0.755;
     r.castShadow = true; scene.add(r);
   });
-  /* bjälklagskant runt trapphålet (inklädnad = gips) */
-  withLayer(['tak'], function(){
-    box(7.0,2.5,4.15, 10.2,2.79,4.2, matWall, false);
-    box(7.0,2.5,5.35, 10.2,2.79,5.4, matWall, false);
-    box(10.15,2.5,4.2, 10.2,2.79,5.35, matWall, false);
-    box(7.0,2.5,4.2, 7.15,2.79,5.35, matWall, false);
+  /* bjälklagskant runt trapphålet (inklädnad = gips) – kläs med väggarna runt trappan */
+  withLayer(['trapp_vagg'], function(){
+    gips(box(7.0,2.5,4.15, 10.2,2.79,4.2, matWall, false));
+    gips(box(7.0,2.5,5.35, 10.2,2.79,5.4, matWall, false));
+    gips(box(10.15,2.5,4.2, 10.2,2.79,5.35, matWall, false));
+    gips(box(7.0,2.5,4.2, 7.15,2.79,5.35, matWall, false));
   });
   /* fururäcke längs trapphålets norra sida på övervåningen */
   box(7.12,3.7,4.17, 10.18,3.76,4.23, matFuru, false);
@@ -4169,7 +4263,7 @@ LAYER = ['sanitet'];
   box(6.27,0.85,6.53, 6.91,0.88,7.15, matWhite, false);
   box(6.36,0.885,6.63, 6.82,0.905,7.05, matSteel, false);  /* ho */
   cyl(6.84,0.88,6.84, 0.015,0.24, matSteel, 10);
-  box(6.92,0,6.55, 7.48,1.9,7.15, matWhite, true);         /* VP 60 cm */
+  withLayer(['varmepump'], function(){ box(6.92,0,6.55, 7.48,1.9,7.15, matWhite, true); });  /* VP 60 cm */
   box(5.0,0.87,6.52, 6.28,0.9,7.15, matFuru, false);       /* avlastningsbänk över maskinerna */
   box(5.05,1.5,6.5, 5.1,1.55,7.15, matSteel, false);
 })();
@@ -4329,10 +4423,27 @@ LAYER = ['mobler'];
     u.rotation.x = Math.PI/2;
   });
   withLayer(['vatrum'], function(){ floorPlane(6.55,5.45,9.25,7.2, matTileWC, F2+0.012); }); /* badrumsklinker */
-  withLayer(['tak'], function(){
-    var c2 = floorPlane(0.3,0.3,13.2,7.2, matCeil, T2-0.005);   /* innertak */
-    c2.rotation.x = Math.PI/2;
-  });
+  /* innertak under plast + glespanel; öppning för vindsluckan när vindstrappan är ikryssad */
+  var hx1 = HATCH.x1, hx2 = HATCH.x2, hz1 = HATCH.z1, hz2 = HATCH.z2;
+  function holed(y, mat, l, raw){
+    [[0.3,0.3,13.2,hz1,[l]],[0.3,hz2,13.2,7.2,[l]],[0.3,hz1,hx1,hz2,[l]],[hx2,hz1,13.2,hz2,[l]],
+     [hx1,hz1,hx2,hz2,[l,'!vindstrappa']]].forEach(function(r){
+      withLayer(r[4], function(){
+        var c = floorPlane(r[0],r[1],r[2],r[3], mat, y);
+        c.rotation.x = Math.PI/2;
+        if (raw) gips(planeUV(c, r[2]-r[0], r[3]-r[1]), raw);
+      });
+    });
+  }
+  holed(T2-0.035, matCeil, 'tak', matGipsRaC);                  /* innertak (gips) */
+  holed(T2-0.002, matPlastTak, 'plast_ov');                     /* byggplast */
+  /* glespanel 28×70 c/c 300 tvärs takstolarna */
+  for (var gz=0.36; gz<7.2; gz+=0.3){
+    var gb = function(x1,x2,l){ withLayer(l, function(){ box(x1,T2-0.03,gz-0.035, x2,T2-0.003,gz+0.035, matVirke,false); }); };
+    if (gz+0.035 > hz1 && gz-0.035 < hz2){
+      gb(0.3,hx1,['glesp_ov']); gb(hx2,13.2,['glesp_ov']); gb(hx1,hx2,['glesp_ov','!vindstrappa']);
+    } else gb(0.3,13.2,['glesp_ov']);
+  }
 
   /* väggar enligt övervåningsritningen (fönsterbröstning 70 cm) */
   var walls2 = [
@@ -4367,9 +4478,9 @@ LAYER = ['mobler'];
     {axis:'z', at:6.5,  th:0.1, y0:F2, y1:T2, from:5.45, to:7.2, openings:[
       {from:5.7, to:6.5, b:F2, t:F2+2.1, type:'door'}      /* bad, 8x21 */
     ]},
-    {axis:'x', at:5.4, th:0.1, y0:F2, y1:T2, from:6.5, to:10.25, openings:[]},   /* bad/sovrum 4 norr */
+    {axis:'x', at:5.4, th:0.1, y0:F2, y1:T2, from:6.5, to:10.25, trapp:[7.0,10.25], openings:[]},   /* bad/sovrum 4 norr */
     {axis:'z', at:9.3, th:0.1, y0:F2, y1:T2, from:5.45, to:7.2, openings:[]},    /* bad öster */
-    {axis:'z', at:10.2, th:0.1, y0:F2, y1:T2, from:4.25, to:5.35, openings:[]},  /* trapphål öster */
+    {axis:'z', at:10.2, th:0.1, y0:F2, y1:T2, from:4.25, to:5.35, trapp:[4.25,5.35], openings:[]},  /* trapphål öster */
     {axis:'x', at:4.3, th:0.1, y0:F2, y1:T2, from:10.15, to:13.2, openings:[
       {from:11.3, to:12.1, b:F2, t:F2+2.1, type:'door'}    /* sovrum 4, 8x21 */
     ]}
@@ -4752,7 +4863,9 @@ LAYER = ['install'];
   vvs = ['vvs','!sanitet'];
   tapp(6.6, -0.012, 7.05, 0.8);    avlopp(6.45, -0.012, 7.05, 0.028, 0.45);    /* tvättho */
   tapp(5.96, -0.012, 7.05, 0.8);   avlopp(5.8, -0.012, 7.05, 0.028, 0.45);     /* tvättmaskin */
+  vvs = ['vvs','!varmepump'];
   tapp(7.2, -0.012, 7.05, 1.9);                                                /* värmepump */
+  vvs = ['vvs','!sanitet'];
   avlopp(7.96, -0.012, 6.9, 0.055, 0.12); tapp(7.96, -0.012, 7.1, 0.3);        /* wc */
   tapp(9.12, -0.012, 7.08, 0.55);  avlopp(9.0, -0.012, 7.05, 0.028, 0.4);      /* tvättställ */
   tapp(7.72, -0.012, 5.9, 1.1);                                                /* dusch */
@@ -5077,6 +5190,73 @@ box(13.16,5.3,0.34, 13.52,5.62,7.16, matFasad, false);
     var mm = new THREE.Mesh(g2, matVindskydd); mm.receiveShadow = true; scene.add(mm);
   });
 })();
+/* ---------- Byggsteg på övervåningen och vinden ---------- */
+(function(){
+  var F2 = 2.8, T2 = 5.3, h = HATCH;
+  /* Ventilationskanaler: stam på vinden, avstick ner till ventilerna i taket,
+     schakt genom förrådet ner i mellanbjälklaget för nedervåningen */
+  function duct(x1,y1,z1, x2,y2,z2, r){
+    var a = new THREE.Vector3(x1,y1,z1), b = new THREE.Vector3(x2,y2,z2), d = b.clone().sub(a);
+    var m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, d.length(), 16), matVent);
+    m.position.copy(a).add(b).multiplyScalar(0.5);
+    m.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0), d.normalize());
+    m.castShadow = m.receiveShadow = true; scene.add(m);
+  }
+  function knee(x,y,z,r){ var k = new THREE.Mesh(new THREE.SphereGeometry(r,14,10), matVent); k.position.set(x,y,z); scene.add(k); }
+  function valve(x,y,z){ withLayer(['vent','tak'], function(){ cyl(x, y-0.018, z, 0.075, 0.018, matWhite, 20); }); }
+  withLayer(['vent'], function(){
+    var yS = 5.56, zS = 3.3, yB = 5.535, rB = 0.0625;
+    box(6.6,5.47,2.95, 7.4,5.95,3.65, matWhite, false);                    /* FTX-aggregat på vinden */
+    duct(1.5,yS,zS, 6.6,yS,zS, 0.08); duct(7.4,yS,zS, 12.5,yS,zS, 0.08);  /* stam Ø160 */
+    [[3.0,2.0],[2.0,5.6],[8.0,2.0],[11.5,2.0],[12.0,6.0],[7.8,6.3]].forEach(function(p){
+      duct(p[0],yB,zS, p[0],yB,p[1], rB); knee(p[0],yB,p[1], rB);
+      duct(p[0],yB,p[1], p[0],T2-0.04,p[1], rB);
+      valve(p[0], T2-0.035, p[1]);
+    });
+    /* schakt i förrådet (x 4,5) ner i bjälklaget, vidare mellan golvbjälkarna */
+    var yN = H + 0.16;
+    duct(4.5,yB,zS, 4.5,yB,6.8, rB); knee(4.5,yB,6.8, rB);
+    duct(4.5,yB,6.8, 4.5,yN,6.8, rB); knee(4.5,yN,6.8, rB);
+    duct(4.5,yN,6.8, 4.5,yN,1.5, rB); knee(4.5,yN,1.5, rB);
+    [1.5, 3.2].forEach(function(z){ duct(4.5,yN,z, 4.5,H-0.01,z, rB); valve(4.5, H-0.005, z); });
+  });
+  /* Fördelarskåp för golvvärmen på övervåningen – förrådets västra vägg */
+  withLayer(['fordel_ov'], function(){
+    box(3.655,F2+0.30,5.9, 3.78,F2+1.00,6.65, matWhite, false);
+    box(3.78,F2+0.32,5.92, 3.785,F2+0.98,6.63, new THREE.MeshStandardMaterial({color:0xeeeeea, roughness:.4}), false);
+    box(3.785,F2+0.58,6.55, 3.80,F2+0.72,6.58, matSteel, false);           /* lås */
+    for (var k=0;k<7;k++) cyl(3.72, F2-0.008, 5.99+k*0.09, 0.009, 0.315, (k%2 ? matWhite : matRorR), 8);
+  });
+  /* Vindstrappa: öppen lucka med utfälld stege, sarg upp genom isoleringen */
+  withLayer(['vindstrappa'], function(){
+    var yF = T2 - 0.035;
+    box(h.x1-0.05,yF-0.012,h.z1-0.05, h.x2+0.05,yF,h.z1, matFrame, false);   /* foder */
+    box(h.x1-0.05,yF-0.012,h.z2, h.x2+0.05,yF,h.z2+0.05, matFrame, false);
+    box(h.x1-0.05,yF-0.012,h.z1, h.x1,yF,h.z2, matFrame, false);
+    box(h.x2,yF-0.012,h.z1, h.x2+0.05,yF,h.z2, matFrame, false);
+    box(h.x1,yF,h.z1, h.x2,5.47,h.z1+0.02, matVirke, false);                /* sarg i höjd med underramen, isoleringen syns ovanför */
+    box(h.x1,yF,h.z2-0.02, h.x2,5.47,h.z2, matVirke, false);
+    box(h.x1,yF,h.z1, h.x1+0.02,5.47,h.z2, matVirke, false);
+    box(h.x2-0.02,yF,h.z1, h.x2,5.47,h.z2, matVirke, false);
+    var top = new THREE.Vector3(0, yF-0.01, h.z2-0.05), foot = new THREE.Vector3(0, F2, h.z2-1.25);
+    var d = foot.clone().sub(top), L = d.length(); d.normalize();
+    beam((h.x1+h.x2)/2, top.y-0.03, top.z, (h.x1+h.x2)/2, top.y-0.03+d.y*0.72, top.z+d.z*0.72, h.x2-h.x1-0.04, 0.025, matWhite); /* luckan */
+    [h.x1+0.07, h.x2-0.07].forEach(function(x){ beam(x, top.y, top.z, x, foot.y, foot.z, 0.025, 0.08, matFuru); });
+    for (var t=0.28; t<L-0.1; t+=0.27){
+      var y = top.y + d.y*t, z = top.z + d.z*t;
+      box(h.x1+0.07, y-0.012, z-0.035, h.x2-0.07, y+0.012, z+0.035, matFuru, false);
+    }
+  });
+  /* Lösull på vindsbjälklaget, tunnare ut mot takfoten, öppning vid vindsluckan */
+  withLayer(['isol_vind'], function(){
+    var yb = T2 + 0.002, yt = 5.74;
+    [[0.34,0.6,13.16,h.z1],[0.34,h.z2,13.16,6.9],[0.34,h.z1,h.x1,h.z2],[h.x2,h.z1,13.16,h.z2]].forEach(function(r){
+      box(r[0],yb,r[1], r[2],yt,r[3], matLosull, false);
+    });
+    box(0.34,yb,0.34, 13.16,5.62,0.6, matLosull, false);
+    box(0.34,yb,6.9, 13.16,5.62,7.16, matLosull, false);
+  });
+})();
 (function(){
   var EAVE = 5.5, RIDGE_U = 7.46, A28 = 28*Math.PI/180;
   /* stående panel per fasad och våning, med hål vid fönster och dörrar */
@@ -5352,32 +5532,33 @@ function updateRoom(x,z){
 
 /* ---------- Meny: byggsteg ---------- */
 var STEPS = [
-  {k:'s_plast_tak',  n:'Plasta tak övervåning'},
-  {k:'s_glesp_ov',   n:'Glespanel tak övervåning'},
+  {k:'s_plast_tak',  n:'Plasta tak övervåning', l:['plast_ov']},
+  {k:'s_glesp_ov',   n:'Glespanel tak övervåning', l:['glesp_ov']},
   {k:'s_regel_ov',   n:'Regla innerväggar ÖV', l:['iv_regel_ov']},
-  {k:'s_vent',       n:'Ventilationskanaler'},
+  {k:'s_vent',       n:'Ventilationskanaler', l:['vent']},
   {k:'s_vvs_ov',     n:'Avlopp/vatten till övervåning', l:['vvs']},
-  {k:'s_glesp_nv',   n:'Glespanel nedervåning'},
+  {k:'s_glesp_nv',   n:'Glespanel nedervåning', l:['glesp_nv']},
   {k:'s_regel_nv',   n:'Regla innerväggar NV', l:['iv_regel_nv']},
-  {k:'s_trapp_vagg', n:'OSb/Gips väggarna runt trappan'},
+  {k:'s_trapp_vagg', n:'OSb/Gips väggarna runt trappan', l:['trapp_vagg']},
   {k:'s_trappa',     n:'Bygga trappan', l:['trappa']},
   {k:'s_el',         n:'Dra el', l:['install']},
-  {k:'s_fordel_ov',  n:'Fördelarskåp ÖV'},
-  {k:'s_isol_yv',    n:'Isolera ytterväggar'},
+  {k:'s_fordel_ov',  n:'Fördelarskåp ÖV', l:['fordel_ov']},
+  {k:'s_isol_yv',    n:'Isolera ytterväggar', l:['isol_yv']},
   {k:'s_gips_tak',   n:'Gipsa tak', l:['tak']},
   {k:'s_osb',        n:'OSB (liggande ytterväggar, stående innerväggar)', l:['gips_yv']},
   {k:'s_gips_vagg',  n:'Gips väggar (stående)', l:['iv_gips']},
-  {k:'s_vindstrappa',n:'Vindstrappa'},
-  {k:'s_mala_tvatt', n:'Måla väggar/tak tvättstuga'},
-  {k:'s_vatrum',     n:'Tätskikt + plattsättning tvättstuga', l:['vatrum']},
-  {k:'s_varmepump',  n:'Värmepump'},
-  {k:'s_isol_vind',  n:'Isolera vindsbjälklag'},
-  {k:'s_golv',       n:'Golv, kök, badrum, dörrar, mm', l:['golv','snick','kok','sanitet','mobler']}
+  {k:'s_vindstrappa',n:'Vindstrappa', l:['vindstrappa']},
+  {k:'s_mala_tvatt', n:'Måla väggar/tak tvättstuga', l:['mala_tt']},
+  {k:'s_vatrum',     n:'Tätskikt + plattsättning tvättstuga', l:['vatrum_tt']},
+  {k:'s_varmepump',  n:'Värmepump', l:['varmepump']},
+  {k:'s_isol_vind',  n:'Isolera vindsbjälklag', l:['isol_vind']},
+  {k:'s_golv',       n:'Golv, kök, badrum, dörrar, mm', l:['golv','vatrum','snick','kok','sanitet','mobler','maleri']}
 ];
 function applyLayers(){
   /* varje steg slår på modellens lager (l); steg utan lager syns bara i listan */
   STEPS.forEach(function(st){ (st.l||[]).forEach(function(k){ LAYER_ON[k] = !!LAYER_ON[st.k]; }); });
   scene.children.forEach(function(o){ if (o.userData.layers) o.visible = layersOn(o.userData.layers); });
+  GIPS.forEach(function(m){ m.material = LAYER_ON.maleri ? m.userData.paint : m.userData.raw; });
   STEPS.forEach(function(st){
     st.cb.checked = !!LAYER_ON[st.k];
     st.el.className = LAYER_ON[st.k] ? 'on' : '';
