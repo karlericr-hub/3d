@@ -40,9 +40,6 @@
   #steps header span{opacity:.6;font-size:11px;}
   #steps .body{padding:0 12px 12px;}
   #steps.min .body{display:none;}
-  #steps .lev{background:rgba(255,255,255,.06);border-radius:8px;padding:8px 10px;margin-bottom:8px;line-height:1.45;}
-  #steps .lev b{display:block;margin-bottom:2px;}
-  #steps .lev ul{margin:4px 0 0;padding-left:16px;opacity:.82;}
   #steps label{display:flex;gap:8px;align-items:flex-start;padding:5px 4px;border-radius:6px;cursor:pointer;line-height:1.35;}
   #steps label:hover{background:rgba(255,255,255,.07);}
   #steps label .n{flex:0 0 20px;height:20px;border-radius:50%;background:rgba(255,255,255,.14);
@@ -80,18 +77,6 @@
 <div id="steps">
   <header id="stepsHead"><b>Byggordning</b><span id="stepsToggle">dölj ▲</span></header>
   <div class="body">
-    <div class="lev"><b>0 · Leveransskick (visas alltid)</b>
-      <ul>
-        <li>Färdig utsida: fasad, tak, fönster och dörrar</li>
-        <li>Ytterväggar med plast + installationsskikt, liggande reglar 45×45</li>
-        <li>Betonggolv med golvbrunnar i tvättstuga, badrum och kök</li>
-        <li>Fördelarskåp för golvvärme i tvättstugan</li>
-        <li>Mellanbjälklag med isolering och spånskivor</li>
-        <li>Öppen vind med takstolar</li>
-        <li>Hjärtväggen på nedervåningen som regelstomme (utan OSB/gips)</li>
-        <li>Öppet trapphål – ingen trappa</li>
-      </ul>
-    </div>
     <div id="stepList"></div>
     <div class="btns">
       <button id="bNone" title="Endast leveransskick">Leverans</button>
@@ -3636,7 +3621,7 @@ function buildWall(w){
   }); });
   if (w.fmat) battens(w, ops, Y0, Y1);
   /* hjärtväggens regelstomme levereras, övriga innerväggars reglar är ett byggsteg */
-  else if (!w.mat) withLayer(w.hjarta ? LAYER : ['iv_regel'], function(){ studs(w, ops, Y0, Y1); });
+  else if (!w.mat) withLayer(w.hjarta ? LAYER : [Y0 > 1 ? 'iv_regel_ov' : 'iv_regel_nv'], function(){ studs(w, ops, Y0, Y1); });
   if (!w.noDecor) withLayer(w.fmat ? LAYER : sl, function(){ ops.forEach(function(o){ decorate(w, o); }); });
 }
 /* box i väggens koordinater: a = längdled, c = tjockleksled */
@@ -4734,7 +4719,7 @@ LAYER = ['install'];
   var F2 = 2.8;
   /* tappvatten (rör-i-rör, rött varmt / blått kallt) upp ur golvet vid varje tappställe */
   /* rören göms när porslin/kök monterats; kökets stosar följer köket */
-  var vvs = ['install','!sanitet'];
+  var vvs = ['vvs','!sanitet'];
   function tapp(x, y0, z, h){
     withLayer(vvs, function(){
       cyl(x-0.035, y0, z, 0.011, h, matRorR, 8);
@@ -4762,9 +4747,9 @@ LAYER = ['install'];
       dW = function(a,y){ dosa('z', pi, a, y, 0.3, 1, 'gips_yv'); },
       dE = function(a,y){ dosa('z', 13.5-pi, a, y, 13.2, -1, 'gips_yv'); };
   /* bottenvåning (i betongplattan) */
-  vvs = ['install','!kok'];
+  vvs = ['vvs','!kok'];
   tapp(12.95, -0.012, 1.75, 0.45); avlopp(12.95, -0.012, 2.05, 0.028, 0.35);  /* diskbänk */
-  vvs = ['install','!sanitet'];
+  vvs = ['vvs','!sanitet'];
   tapp(6.6, -0.012, 7.05, 0.8);    avlopp(6.45, -0.012, 7.05, 0.028, 0.45);    /* tvättho */
   tapp(5.96, -0.012, 7.05, 0.8);   avlopp(5.8, -0.012, 7.05, 0.028, 0.45);     /* tvättmaskin */
   tapp(7.2, -0.012, 7.05, 1.9);                                                /* värmepump */
@@ -5367,32 +5352,44 @@ function updateRoom(x,z){
 
 /* ---------- Meny: byggsteg ---------- */
 var STEPS = [
-  {k:'iv_regel', n:'Innerväggar – regelstomme', d:'Syll, reglar c/c 600 och hammarband'},
-  {k:'install',  n:'El- och VVS-dragning', d:'Dosor, rör-i-rör, avloppsstosar, elcentral'},
-  {k:'tak',      n:'Innertak', d:'Glespanel + gips på båda planen, inklädnad av trapphålet'},
-  {k:'gips_yv',  n:'Gips på ytterväggarna', d:'Skivor på installationsskiktet'},
-  {k:'iv_gips',  n:'Innerväggar – OSB/gips', d:'Skivor på alla innerväggar inkl. hjärtväggen, spackel och målning'},
-  {k:'vatrum',   n:'Våtrum – tätskikt, klinker & kakel', d:'Badrum, WC/dusch och tvättstuga'},
-  {k:'golv',     n:'Golv', d:'Furugolv och klinker i entré/förråd'},
-  {k:'trappa',   n:'Trappa & räcke', d:'Trappan upp till övervåningen'},
-  {k:'snick',    n:'Snickerier', d:'Smygar, foder, golvlister, fönsterbänkar, innerdörrar'},
-  {k:'kok',      n:'Kök', d:'Skåp, bänkar, vitvaror och köksö'},
-  {k:'sanitet',  n:'Porslin & maskiner', d:'WC, dusch, badkar, tvättmaskiner, värmepump'},
-  {k:'mobler',   n:'Möbler & inredning', d:'Möbler, mattor, gardiner, armaturer, växter'}
+  {k:'s_plast_tak',  n:'Plasta tak övervåning'},
+  {k:'s_glesp_ov',   n:'Glespanel tak övervåning'},
+  {k:'s_regel_ov',   n:'Regla innerväggar ÖV', l:['iv_regel_ov']},
+  {k:'s_vent',       n:'Ventilationskanaler'},
+  {k:'s_vvs_ov',     n:'Avlopp/vatten till övervåning', l:['vvs']},
+  {k:'s_glesp_nv',   n:'Glespanel nedervåning'},
+  {k:'s_regel_nv',   n:'Regla innerväggar NV', l:['iv_regel_nv']},
+  {k:'s_trapp_vagg', n:'OSb/Gips väggarna runt trappan'},
+  {k:'s_trappa',     n:'Bygga trappan', l:['trappa']},
+  {k:'s_el',         n:'Dra el', l:['install']},
+  {k:'s_fordel_ov',  n:'Fördelarskåp ÖV'},
+  {k:'s_isol_yv',    n:'Isolera ytterväggar'},
+  {k:'s_gips_tak',   n:'Gipsa tak', l:['tak']},
+  {k:'s_osb',        n:'OSB (liggande ytterväggar, stående innerväggar)', l:['gips_yv']},
+  {k:'s_gips_vagg',  n:'Gips väggar (stående)', l:['iv_gips']},
+  {k:'s_vindstrappa',n:'Vindstrappa'},
+  {k:'s_mala_tvatt', n:'Måla väggar/tak tvättstuga'},
+  {k:'s_vatrum',     n:'Tätskikt + plattsättning tvättstuga', l:['vatrum']},
+  {k:'s_varmepump',  n:'Värmepump'},
+  {k:'s_isol_vind',  n:'Isolera vindsbjälklag'},
+  {k:'s_golv',       n:'Golv, kök, badrum, dörrar, mm', l:['golv','snick','kok','sanitet','mobler']}
 ];
 function applyLayers(){
+  /* varje steg slår på modellens lager (l); steg utan lager syns bara i listan */
+  STEPS.forEach(function(st){ (st.l||[]).forEach(function(k){ LAYER_ON[k] = !!LAYER_ON[st.k]; }); });
   scene.children.forEach(function(o){ if (o.userData.layers) o.visible = layersOn(o.userData.layers); });
   STEPS.forEach(function(st){
     st.cb.checked = !!LAYER_ON[st.k];
     st.el.className = LAYER_ON[st.k] ? 'on' : '';
   });
-  try { localStorage.setItem('villaSteg', JSON.stringify(LAYER_ON)); } catch(e){}
+  var sv = {}; STEPS.forEach(function(st){ sv[st.k] = !!LAYER_ON[st.k]; });
+  try { localStorage.setItem('villaSteg', JSON.stringify(sv)); } catch(e){}
 }
 (function(){
   var list = document.getElementById('stepList');
   STEPS.forEach(function(st, i){
     var lb = document.createElement('label');
-    lb.innerHTML = '<input type="checkbox"><span class="n">'+(i+1)+'</span><span>'+st.n+'<small>'+st.d+'</small></span>';
+    lb.innerHTML = '<input type="checkbox"><span class="n">'+(i+1)+'</span><span>'+st.n+'</span>';
     st.el = lb; st.cb = lb.querySelector('input');
     st.cb.addEventListener('change', function(){ LAYER_ON[st.k] = st.cb.checked; applyLayers(); });
     list.appendChild(lb);
